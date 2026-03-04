@@ -29,7 +29,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Notes
 
 203 tests across 11 files, all passing. No new dependencies. `llm_enhanced` is always false in this phase — LLM enhancement
-(Phase 7+) will set this flag to true when the Pro key is configured and the call succeeds. The deterministic t
+(Phase 7+) will set this flag to true when the Pro key is configured and the call succeeds. The deterministic template remains the permanent
+fallback for the Free tier and for LLM failure scenarios.
 
 ---
 
