@@ -10,6 +10,33 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.3.0] — 2026-03-04
+
+### Added
+
+- `src/sources.ts` — source aggregation layer: `fetchAllJobs()` runs both
+  adapters concurrently with per-source error isolation; `deduplicate()`
+  removes duplicate `job_id` entries (first-seen wins); returns `FetchResult`
+  with job list, per-source counts, and error map for run instrumentation
+- `src/core/text-processing.ts` — shared text processing library:
+  `STOPWORDS` (English function words + full PR-E recruitment boilerplate set),
+  `SECTION_WEIGHTS` (skills=1.0, summary=0.8, experience=0.6, education=0.4),
+  `tokenize()`, `tokenizeUnique()`, `extractPhrases()`,
+  `extractPhrasesFromText()`, `tokenOverlap()`, `matchedTokens()`,
+  `gapTokens()`
+- `src/tests/text-processing.test.ts` — 34 unit tests
+- `src/tests/sources.test.ts` — 10 unit tests (ESM-safe adapter stubs via
+  `vi.doMock()` + `vi.resetModules()`; no network)
+
+### Notes
+
+102 tests across 6 files, all passing. No new production dependencies.
+`SECTION_WEIGHTS` is defined here and will be consumed by resume intelligence
+in Phase 5. The `FetchResult.errors` map feeds into `BriefingRun.sources`
+instrumentation in Phase 8.
+
+---
+
 ## [0.2.0] — 2026-03-03
 
 ### Added
@@ -77,6 +104,7 @@ This release establishes the Phase 1 foundation types. No adapters,
 matching, or CLI are included yet — those follow in Phases 2–8 per the
 Node Migration Decision (ADR, March 2026).
 
-[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/releases/tag/v0.1.0
