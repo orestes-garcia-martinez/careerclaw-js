@@ -10,6 +10,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.7.0] — 2026-03-04
+
+### Added
+
+- `src/tracking.ts` — `TrackingRepository` class managing two runtime files under `.careerclaw/`:
+  - `tracking.json` — keyed object of `TrackingEntry` records; new jobs saved with status `"saved"`; re-encountered jobs have
+    `last_seen_at` and `updated_at` refreshed, all other fields (including user-set status) preserved; one disk write per
+    `upsertEntries()` call regardless of batch size
+  - `runs.jsonl` — append-only newline-delimited JSON log; one `BriefingRun` per line via `appendRun()`
+  - Constructor accepts `trackingPath`, `runsPath`, and `dryRun` overrides; defaults from `config.ts`
+  - `load()` returns empty store on a missing or corrupt file — no crash
+  - `ensureDir()` creates parent directory recursively on first writing
+  - `upsertEntries()` returns accurate `{ created, already_present }` counts even in dry-run mode
+  - `ScoredJob?` parameter on `upsertEntries()` reserved for Phase 8 score snapshot attachment
+- `src/tests/tracking.test.ts` — 23 unit tests; per-test isolated `tmpdir` directories; covers load, upsert (new + re-encounter),
+  disk writes, JSONL append, and dry-run suppression
+
+### Notes
+
+226 tests across 12 files, all passing. No new dependencies. The `TrackingRepository` is the last infrastructure module before the
+Phase 8 briefing orchestrator wires everything into the full pipeline.
+Dry-run mode is a first-class concern throughout: all writing paths are suppressed, all read and count paths remain fully functional, matching
+the Python careerclaw `--dry-run` behaviour.
+
+---
+
 ## [0.6.0] — 2026-03-04
 
 ### Added
@@ -17,7 +43,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - `src/drafting.ts` — `draftOutreach(job, profile, matchedKeywords)`:
   deterministic outreach email generator; subject line follows `Interest in {title} at {company}` format; body inserts experience
   clause (years or "extensive experience" fallback), up to 3 matched keywords formatted as natural language, and 3 fixed
-  reliability/collaboration/instrumentation bullet highlights; word count 161–168 words depending on keyword path, inside 150–250 word
+  reliability/collaboration/instrumentation bullet highlights; word count 161–168 words depending on a keyword path, inside 150–250 word
   spec; `llm_enhanced: false` always; `formatList()` helper for natural-language list formatting
 - `src/tests/drafting.test.ts` — 20 unit tests
 
@@ -38,7 +64,7 @@ fallback for the Free tier and for LLM failure scenarios.
 
 ### Added
 
-- `src/requirements.ts` — `extractJobRequirements(job)`: tokenises job title + description into a deduplicated keyword + phrase corpus for
+- `src/requirements.ts` — `extractJobRequirements(job)`: tokenizes job title and description into a deduplicated keyword and phrase corpus for
   use as the job-side input to gap analysis
 - `src/resume-intel.ts` — `buildResumeIntelligence(params)`:
   section-aware keyword/phrase extraction across skills (weight 1.0), summary + target_roles (weight 0.8), and optional resume_text (weight
@@ -53,13 +79,13 @@ fallback for the Free tier and for LLM failure scenarios.
 
 ### Fixed
 
-- Added `"am"` to `STOPWORDS` in `src/core/text-processing.ts` — missed from initial set alongside `"is"`, `"are"`, `"was"`, `"were"`, `"be"`;
+- Added `"am"` to `STOPWORDS` in `src/core/text-processing.ts` — missed from an initial set alongside `"is"`, `"are"`, `"was"`, `"were"`, `"be"`;
   caught by resume-intel stopword filter test
 
 ### Notes
 
 183 tests across 10 files, all passing. No new dependencies. The `fit_score` weighted formula is identical to the Python careerclaw
-implementation: skills listed in UserProfile.skills receive weight 1.0 and will never appear as gaps. The practical fit_score ceiling against
+implementation: skills listed in UserProfile. Skills receive weight 1.0 and will never appear as gaps. The practical fit_score ceiling against
 real job postings is ~50% due to company names and location tokens in the denominator.
 
 ### Future Work
@@ -75,7 +101,7 @@ real job postings is ~50% due to company names and location tokens in the denomi
 
 - `src/matching/scoring.ts` — four pure scoring functions:
   `scoreKeyword()` (Jaccard token overlap, returns matched and gap keyword lists), `scoreExperience()` (clamped linear user/job years ratio),
-  `scoreSalary()` (proportional against user minimum),
+  `scoreSalary()` (proportional against a user minimum),
   `scoreWorkMode()` (exact=1.0, hybrid=0.5 partial, mismatch=0.0);
   `compositeScore()` with `WEIGHTS` (keyword=0.50, experience=0.20, salary=0.15, work_mode=0.15)
 - `src/matching/engine.ts` — `rankJobs(jobs, profile, topK)` scores all jobs, sorts descending by composite score, returns top-K `ScoredJob[]`
