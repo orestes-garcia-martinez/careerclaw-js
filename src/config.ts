@@ -67,7 +67,7 @@ export const REMOTEOK_RSS_URL = "https://remoteok.com/remote-jobs.rss";
  * and copy the numeric ID from the URL (e.g. https://news.ycombinator.com/item?id=43354977).
  */
 export const HN_WHO_IS_HIRING_ID: number = parseInt(
-	process.env["HN_WHO_IS_HIRING_ID"] ?? "43354977",
+	process.env["HN_WHO_IS_HIRING_ID"] ?? "47219668",
 	10
 );
 

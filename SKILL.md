@@ -13,7 +13,7 @@ install:
 CareerClaw turns your AI agent into a structured job search workflow:
 **fetch listings → rank matches → draft outreach → track applications.**
 
-All data stays on your machine. No job board account is required.
+All data stays on your machine. No job board account required.
 
 ---
 
@@ -21,7 +21,7 @@ All data stays on your machine. No job board account is required.
 
 ### Step 1 — Ensure careerclaw-js is installed
 
-> ⚠️ **Note:** careerclaw-js v0.1.0 is a foundation release (models and config only).
+> ⚠️ **Note:** careerclaw-js v0.1.0 is a foundation release (models + config only).
 > The full briefing CLI ships in v0.8.0. Use the Python careerclaw package
 > for production briefings until then.
 
@@ -77,7 +77,7 @@ Create `~/.careerclaw/profile.json` with your details:
 
 ## Data Files
 
-All runtime states live in `~/.careerclaw/`:
+All runtime state lives in `~/.careerclaw/`:
 
 | File            | Description                                     |
 |-----------------|-------------------------------------------------|
@@ -91,14 +91,14 @@ All runtime states live in `~/.careerclaw/`:
 
 ## Environment Variables
 
-| Variable                  | Description                                           |
-|---------------------------|-------------------------------------------------------|
-| `CAREERCLAW_PRO_KEY`      | Pro license key (Gumroad)                             |
-| `CAREERCLAW_LLM_KEY`      | API key for LLM draft enhancement (Pro)               |
-| `CAREERCLAW_LLM_PROVIDER` | `anthropic` (default) or `openai`                     |
-| `CAREERCLAW_LLM_MODEL`    | Model override (default: `claude-sonnet-4-20250514`)  |
-| `CAREERCLAW_DIR`          | Override runtime directory (default: `~/.careerclaw`) |
-| `HN_WHO_IS_HIRING_ID`     | Override HN thread ID (updated monthly)               |
+| Variable                  | Description                                                   |
+|---------------------------|---------------------------------------------------------------|
+| `CAREERCLAW_PRO_KEY`      | Pro license key (Gumroad)                                     |
+| `CAREERCLAW_LLM_KEY`      | API key for LLM draft enhancement (Pro)                       |
+| `CAREERCLAW_LLM_PROVIDER` | `anthropic` (default) or `openai`                             |
+| `CAREERCLAW_LLM_MODEL`    | Model override (default: `claude-sonnet-4-20250514`)          |
+| `CAREERCLAW_DIR`          | Override runtime directory (default: `~/.careerclaw`)         |
+| `HN_WHO_IS_HIRING_ID`     | Override HN thread ID (updated monthly — current: `47219668`) |
 
 ---
 
@@ -106,7 +106,7 @@ All runtime states live in `~/.careerclaw/`:
 
 - **No backend.** No telemetry. No analytics endpoint.
 - **API keys never stored.** `CAREERCLAW_LLM_KEY` is read from the environment at runtime only.
-- **License cache is hash-only.** The raw Pro key is never written to the disk.
+- **License cache is hash-only.** The raw Pro key is never written to disk.
 - **No PII transmission.** Your resume, profile, and application history stay in `~/.careerclaw/` only.
 - **External calls (when active):** `remoteok.com` (RSS), `hacker-news.firebaseio.com` (public API), `api.gumroad.com` (license validation), and your configured LLM provider (using your own key).
 
