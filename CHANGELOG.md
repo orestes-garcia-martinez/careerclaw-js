@@ -10,6 +10,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.0] — 2026-03-04
+
+### Added
+
+- `src/briefing.ts` — `runBriefing(profile, options)`: end-to-end pipeline orchestrator; four timed stages (fetch, rank, draft,
+  persist); skill-first design — profile is a parameter, never loaded from disk; `fetchFn` and `repo` are injectable for testing; dry-run
+  suppresses all writes while keeping counts accurate; catastrophic fetch failure returns empty result rather than throwing;
+  `run_id` generated via `crypto.randomUUID()` (Node built-in); `version` read from package.json at runtime via `createRequire`
+- `BriefingResult` interface added to `src/models.ts` — stable JSON output schema for OpenClaw/ClawHub agent consumption: `run`,
+  `matches`, `drafts`, `tracking`, `dry_run`
+- `src/tests/briefing.test.ts` — 17 integration tests; all offline via stubbed `fetchFn` and `tmpdir`-backed `TrackingRepository`
+
+### Fixed
+
+- `draftOutreach()` and `upsertEntries()` were being passed `ScoredJob` where `NormalizedJob` was required; `ScoredJob` wraps `NormalizedJob`
+  as `.job` and does not extend it — both callsites corrected to unwrap `.job`; corresponding test assertion corrected from
+  `scored.job_id` to `scored.job.job_id`
+
+### Notes
+
+243 tests across 13 files, all passing. No new dependencies. The pipeline is now end-to-end complete. Every module from Phase 1 through
+Phase 7 is wired into a single callable function. Phase 9 (CLI entry point) will expose `runBriefing()` as an executable with `--dry-run`,
+`--top-k`, and `--json` flags, matching the Python careerclaw CLI surface.
+
+---
+
 ## [0.7.0] — 2026-03-04
 
 ### Added
@@ -212,7 +238,10 @@ This release establishes the Phase 1 foundation types. No adapters,
 matching, or CLI are included yet — those follow in Phases 2–8 per the
 Node Migration Decision (ADR, March 2026).
 
-[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.2.0...v0.3.0

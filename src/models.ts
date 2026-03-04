@@ -242,3 +242,28 @@ export function emptyProfile(): UserProfile {
     salary_min: null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Briefing output bundle
+// ---------------------------------------------------------------------------
+
+/**
+ * The complete output of a single briefing run.
+ * This is the stable JSON schema consumed by OpenClaw/ClawHub agents.
+ */
+export interface BriefingResult {
+  /** The BriefingRun record that was (or would be) appended to runs.jsonl. */
+  run: BriefingRun;
+  /** Top-K scored jobs produced by the ranking engine. */
+  matches: ScoredJob[];
+  /** One OutreachDraft per match, in the same order as matches[]. */
+  drafts: OutreachDraft[];
+  /** Counts from upsertEntries() — always accurate even in dry-run. */
+  tracking: {
+    created: number;
+    already_present: number;
+  };
+  /** Whether this was a dry run (no files written). */
+  dry_run: boolean;
+}
+

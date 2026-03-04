@@ -262,7 +262,7 @@ set to Node.js/TypeScript. The Python repository remains active in parallel — 
 | 5     | Requirements + resume intelligence + gap analysis | ✅ v0.5.0 |
 | 6     | Drafting + LLM enhancement                        | ✅ v0.6.0 |
 | 7     | Tracking + license validation                     | ✅ v0.7.0 |
-| 8     | Briefing CLI + npm publish + SKILL.md update      | 🔜       |
+| 8     | Briefing CLI + npm publish + SKILL.md update      | ✅ v0.8.0 |
 
 ---
 
