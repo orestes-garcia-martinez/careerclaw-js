@@ -10,6 +10,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.0] — 2026-03-04
+
+### Added
+
+- `src/matching/scoring.ts` — four pure scoring functions:
+  `scoreKeyword()` (Jaccard token overlap, returns matched and gap keyword lists), `scoreExperience()` (clamped linear user/job years ratio),
+  `scoreSalary()` (proportional against user minimum),
+  `scoreWorkMode()` (exact=1.0, hybrid=0.5 partial, mismatch=0.0);
+  `compositeScore()` with `WEIGHTS` (keyword=0.50, experience=0.20, salary=0.15, work_mode=0.15)
+- `src/matching/engine.ts` — `rankJobs(jobs, profile, topK)` scores all jobs, sorts descending by composite score, returns top-K `ScoredJob[]`
+  with full breakdown and keyword lists; scores rounded to 4 d.p.
+- `src/matching/index.ts` — barrel export for matching public API
+- `src/tests/matching.scoring.test.ts` — 36 unit tests
+- `src/tests/matching.engine.test.ts` — 10 end-to-end tests using real model types
+
+### Notes
+
+148 tests across 8 files, all passing. No new dependencies. Neutral score (0.5) is used for all null data cases, so missing job fields
+neither reward nor penalize the composite — consistent with Python careerclaw behavior. Gap keywords from `scoreKeyword()` feed directly
+into Phase 5 gap analysis.
+
+---
+
 ## [0.3.0] — 2026-03-04
 
 ### Added
@@ -19,7 +42,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   removes duplicate `job_id` entries (first-seen wins); returns `FetchResult`
   with job list, per-source counts, and error map for run instrumentation
 - `src/core/text-processing.ts` — shared text processing library:
-  `STOPWORDS` (English function words + full PR-E recruitment boilerplate set),
+  `STOPWORDS` (English function words and full PR-E recruitment boilerplate set),
   `SECTION_WEIGHTS` (skills=1.0, summary=0.8, experience=0.6, education=0.4),
   `tokenize()`, `tokenizeUnique()`, `extractPhrases()`,
   `extractPhrasesFromText()`, `tokenOverlap()`, `matchedTokens()`,
@@ -104,7 +127,8 @@ This release establishes the Phase 1 foundation types. No adapters,
 matching, or CLI are included yet — those follow in Phases 2–8 per the
 Node Migration Decision (ADR, March 2026).
 
-[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/releases/tag/v0.1.0

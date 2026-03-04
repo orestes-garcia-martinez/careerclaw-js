@@ -85,10 +85,6 @@ careerclaw-js briefing --resume-pdf ~/.careerclaw/resume.pdf --dry-run
 careerclaw-js briefing --resume-pdf ~/.careerclaw/resume.pdf
 ```
 
-> **Note:** The `briefing` command ships in v0.8.0. careerclaw-js v0.1.0 is the
-> Phase 1 foundation release (models + config), and v0.2.0 adds the source adapters.
-> See the [roadmap](#roadmap) below.
-
 ---
 
 ## Sample Output
@@ -257,16 +253,16 @@ Runtime files — all stored under `~/.careerclaw/` (gitignored by default):
 careerclaw-js is being built phase by phase, porting the full Python careerclaw feature
 set to Node.js/TypeScript. The Python repository remains active in parallel — no deprecation.
 
-| Phase | Scope                                             | Status     |
-|-------|---------------------------------------------------|------------|
-| 1     | Models + config                                   | ✅ v0.1.0  |
-| 2     | RemoteOK + HN adapters                            | ✅ v0.2.0  |
-| 3     | Source aggregation + text processing              | ✅ v0.3.0  |
-| 4     | Matching engine + scoring                         | 🔜         |
-| 5     | Requirements + resume intelligence + gap analysis | 🔜         |
-| 6     | Drafting + LLM enhancement                        | 🔜         |
-| 7     | Tracking + license validation                     | 🔜         |
-| 8     | Briefing CLI + npm publish + SKILL.md update      | 🔜         |
+| Phase | Scope                                             | Status   |
+|-------|---------------------------------------------------|----------|
+| 1     | Models + config                                   | ✅ v0.1.0 |
+| 2     | RemoteOK + HN adapters                            | ✅ v0.2.0 |
+| 3     | Source aggregation + text processing              | ✅ v0.3.0 |
+| 4     | Matching engine + scoring                         | ✅ v0.4.0 |
+| 5     | Requirements + resume intelligence + gap analysis | 🔜       |
+| 6     | Drafting + LLM enhancement                        | 🔜       |
+| 7     | Tracking + license validation                     | 🔜       |
+| 8     | Briefing CLI + npm publish + SKILL.md update      | 🔜       |
 
 ---
 
