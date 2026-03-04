@@ -1,6 +1,6 @@
 ---
 name: CareerClaw
-version: 0.1.0
+version: 0.3.0
 description: AI-powered job search automation. Fetches listings, ranks matches against your profile, drafts outreach, and tracks applications — all locally.
 author: Orestes Garcia Martinez
 install:
