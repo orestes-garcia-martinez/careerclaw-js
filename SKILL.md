@@ -1,6 +1,6 @@
 ---
 name: CareerClaw
-version: 0.7.0
+version: 0.8.0
 description: AI-powered job search automation. Fetches listings, ranks matches against your profile, drafts outreach, and tracks applications — all locally.
 author: Orestes Garcia Martinez
 install:
@@ -33,7 +33,7 @@ Verify the install:
 careerclaw-js --version
 ```
 
-Expected output: `careerclaw-js 0.7.0`
+Expected output: `careerclaw-js 0.8.0`
 
 ### Step 2 — Create your runtime directory
 
