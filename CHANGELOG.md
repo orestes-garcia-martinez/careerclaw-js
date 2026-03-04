@@ -8,22 +8,51 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] — 2026-03-03
+
 ### Added
 
-- `README.md` — full project documentation adapted from Python careerclaw,
-  covering installation, quickstart, Free vs. Pro feature table, CLI reference,
-  tracking file layout, environment variables, roadmap, and security model
+- `src/adapters/remoteok.ts` — RemoteOK RSS adapter; parses RSS XML into
+  `NormalizedJob[]`; `parseRss()` exported separately from `fetchRemoteOkJobs()`
+  so contract tests call pure parsing functions without network mocking
+- `src/adapters/hackernews.ts` — HN Firebase adapter; fetches "Who is Hiring?"
+  thread comments in parallel; `parseComment()` exported for offline testing;
+  handles deleted/dead items gracefully
+- `src/adapters/index.ts` — barrel export for all adapter public API
+- `src/tests/fixtures/remoteok.xml` — RSS fixture covering full fields, no-salary,
+  and k-suffix salary variants
+- `src/tests/fixtures/hn-thread.json` — HN thread fixture with `kids` array
+- `src/tests/fixtures/hn-comment-job.json` — HN job comment fixture (pipe-separated
+  header, HTML body, salary, experience years)
+- `src/tests/fixtures/hn-comment-deleted.json` — deleted comment fixture (adapter
+  must skip)
+- `src/tests/adapters.remoteok.test.ts` — 25 offline contract tests (title/company
+  splitting, salary parsing, work-mode inference, HTML stripping, `stableId`)
+- `src/tests/adapters.hackernews.test.ts` — 18 offline contract tests (header
+  parsing, timestamp conversion, HTML decoding, skip logic for deleted items)
+- `scripts/smoke_sources.ts` — live smoke test hitting real RemoteOK RSS and HN
+  Firebase APIs; run manually before releases with `npm run smoke`
+- `fast-xml-parser` added as a production dependency (RSS parsing)
+- `tsx` added as a dev dependency (runs a smoke script without a compiler step)
 
 ### Changed
 
-- **Payment processor:** Pro license key delivery and validation switched from
-  Gumroad to **Polar.sh** (`https://polar.sh/orestes-garcia-martinez/careerclaw-pro`).
-  Polar.sh was approved for use after LemonSqueezy merchant rejection.
-  The `CAREERCLAW_PRO_KEY` env var name and local SHA-256 license cache behavior
-  are unchanged. Only the purchase URL and validation endpoint change (reflected
-  in `src/config.ts` when license validation is implemented in Phase 7).
+- `stripHtml()` fixed: opening `<p>` tags now convert to `\n` (was `""`) so HN
+  comment header and body lines split correctly after HTML stripping
+- `README.md` — roadmap updated; Phase 2 marked complete; note updated to
+  reference v0.2.0
+- **Payment processor:** Pro license switched from Gumroad to **Polar.sh**
+  (`https://polar.sh/orestes-garcia-martinez/careerclaw-pro`); `CAREERCLAW_PRO_KEY`
+  env var name and SHA-256 cache behavior unchanged
 
----
+### Notes
+
+58 tests across 4 test files, all passing. No network calls in CI — all adapter
+tests use offline fixtures. Run `npm run smoke` manually before each release to
+validate live sources.
+
 
 ## [0.1.0] — 2026-03-03
 
@@ -48,5 +77,6 @@ This release establishes the Phase 1 foundation types. No adapters,
 matching, or CLI are included yet — those follow in Phases 2–8 per the
 Node Migration Decision (ADR, March 2026).
 
-[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/releases/tag/v0.1.0
