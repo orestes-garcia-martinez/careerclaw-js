@@ -10,6 +10,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.6.0] — 2026-03-04
+
+### Added
+
+- `src/drafting.ts` — `draftOutreach(job, profile, matchedKeywords)`:
+  deterministic outreach email generator; subject line follows `Interest in {title} at {company}` format; body inserts experience
+  clause (years or "extensive experience" fallback), up to 3 matched keywords formatted as natural language, and 3 fixed
+  reliability/collaboration/instrumentation bullet highlights; word count 161–168 words depending on keyword path, inside 150–250 word
+  spec; `llm_enhanced: false` always; `formatList()` helper for natural-language list formatting
+- `src/tests/drafting.test.ts` — 20 unit tests
+
+### Fixed
+
+- Deterministic template body was 127 words on the first pass — below the 150-word MVP spec floor; fixed by expanding opening and closing
+  paragraphs; both keyword and fallback paths re-verified at 161 and 168 words respectively
+
+### Notes
+
+203 tests across 11 files, all passing. No new dependencies. `llm_enhanced` is always false in this phase — LLM enhancement
+(Phase 7+) will set this flag to true when the Pro key is configured and the call succeeds. The deterministic t
+
+---
+
 ## [0.5.0] — 2026-03-04
 
 ### Added
