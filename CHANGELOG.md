@@ -238,7 +238,10 @@ This release establishes the Phase 1 foundation types. No adapters,
 matching, or CLI are included yet — those follow in Phases 2–8 per the
 Node Migration Decision (ADR, March 2026).
 
-[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.2.0...v0.3.0
