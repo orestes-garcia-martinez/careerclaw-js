@@ -1,0 +1,45 @@
+{
+  "name": "careerclaw-js",
+  "version": "0.1.0",
+  "description": "AI-powered job search automation for OpenClaw — Node.js rewrite of CareerClaw",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "careerclaw-js": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "files": [
+    "dist",
+    "SKILL.md",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "careerclaw",
+    "openclaw",
+    "clawhub",
+    "job-search",
+    "automation",
+    "ai"
+  ],
+  "author": "Orestes Garcia Martinez",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
