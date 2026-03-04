@@ -1,6 +1,6 @@
 ---
 name: CareerClaw
-version: 0.3.0
+version: 0.4.0
 description: AI-powered job search automation. Fetches listings, ranks matches against your profile, drafts outreach, and tracks applications — all locally.
 author: Orestes Garcia Martinez
 install:
@@ -21,10 +21,6 @@ All data stays on your machine. No job board account required.
 
 ### Step 1 — Ensure careerclaw-js is installed
 
-> ⚠️ **Note:** careerclaw-js v0.1.0 is a foundation release (models + config only).
-> The full briefing CLI ships in v0.8.0. Use the Python careerclaw package
-> for production briefings until then.
-
 Run this once to install or upgrade careerclaw-js:
 
 ```bash
@@ -37,7 +33,7 @@ Verify the install:
 careerclaw-js --version
 ```
 
-Expected output: `careerclaw-js 0.1.0`
+Expected output: `careerclaw-js 0.4.0`
 
 ### Step 2 — Create your runtime directory
 
