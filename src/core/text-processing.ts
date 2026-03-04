@@ -28,7 +28,7 @@ export const STOPWORDS: ReadonlySet<string> = new Set([
   // Common English function words
   "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
   "of", "with", "by", "from", "as", "is", "was", "are", "were", "be",
-  "been", "being", "have", "has", "had", "do", "does", "did", "will",
+  "been", "being", "am", "have", "has", "had", "do", "does", "did", "will",
   "would", "could", "should", "may", "might", "shall", "can", "need",
   "dare", "ought", "used", "it", "its", "this", "that", "these", "those",
   "i", "you", "he", "she", "we", "they", "me", "him", "her", "us",
