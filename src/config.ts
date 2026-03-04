@@ -45,7 +45,7 @@ export const HTTP_TIMEOUT_MS = 15_000;
  * Identifies the tool and provides a contact point per robots.txt convention.
  */
 export const USER_AGENT =
-	"careerclaw-js/0.4.0 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
+	"careerclaw-js/0.5.0 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
 
 // ---------------------------------------------------------------------------
 // Job sources

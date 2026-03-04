@@ -10,6 +10,41 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.5.0] — 2026-03-04
+
+### Added
+
+- `src/requirements.ts` — `extractJobRequirements(job)`: tokenises job title + description into a deduplicated keyword + phrase corpus for
+  use as the job-side input to gap analysis
+- `src/resume-intel.ts` — `buildResumeIntelligence(params)`:
+  section-aware keyword/phrase extraction across skills (weight 1.0), summary + target_roles (weight 0.8), and optional resume_text (weight
+  0.6); per-keyword weight is the max across sections; `impact_signals` are keywords with weight >= 0.8; `source` flag indicates which inputs
+  contributed; PR-E fix (skills injection) baked in from day one
+- `src/gap.ts` — `gapAnalysis(intel, job)`: weighted `fit_score` (sum of matched keyword_weights / job keyword count), `fit_score_unweighted`
+  (Jaccard), `signals` (resume ∩ job), `gaps` (job − resume), and top-5 `summary` for display
+- `JobRequirements`, `ResumeIntelligence`, `GapAnalysisResult` interfaces added to `src/models.ts`; `ResumeIntelligence` schema is
+  JSON-compatible with Python careerclaw output
+- `src/tests/resume-intel.test.ts` — 19 unit tests
+- `src/tests/gap.test.ts` — 16 unit tests
+
+### Fixed
+
+- Added `"am"` to `STOPWORDS` in `src/core/text-processing.ts` — missed from initial set alongside `"is"`, `"are"`, `"was"`, `"were"`, `"be"`;
+  caught by resume-intel stopword filter test
+
+### Notes
+
+183 tests across 10 files, all passing. No new dependencies. The `fit_score` weighted formula is identical to the Python careerclaw
+implementation: skills listed in UserProfile.skills receive weight 1.0 and will never appear as gaps. The practical fit_score ceiling against
+real job postings is ~50% due to company names and location tokens in the denominator.
+
+### Future Work
+
+- CorpusCache: Entropy-based token filtering (IDF) to suppress tokens that appear in >80% of fetched jobs. Gated behind corpus_size >= 50.
+  Planned for a future release after job tracking accumulates sufficient data.
+
+---
+
 ## [0.4.0] — 2026-03-04
 
 ### Added
@@ -127,7 +162,8 @@ This release establishes the Phase 1 foundation types. No adapters,
 matching, or CLI are included yet — those follow in Phases 2–8 per the
 Node Migration Decision (ADR, March 2026).
 
-[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.1.0...v0.2.0
