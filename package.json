@@ -14,17 +14,19 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist",
     "smoke:sources": "npx tsx scripts/smoke_sources.ts",
     "smoke:briefing": "npx tsx scripts/smoke_briefing.ts",
     "smoke:llm": "npx tsx --env-file=.env scripts/smoke_llm.ts",
-    "lint": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "cli": "tsx src/cli.ts --profile .careerclaw/profile.json --resume-txt .careerclaw/resume.txt --dry-run"
   },
   "files": [
     "dist",
     "SKILL.md",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "SECURITY.md"
   ],
   "keywords": [
     "careerclaw",
@@ -42,6 +44,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.1.9",
+    "tsx": "^4.21.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   },
