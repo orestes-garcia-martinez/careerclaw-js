@@ -264,6 +264,7 @@ set to Node.js/TypeScript. The Python repository remains active in parallel — 
 | 7     | Tracking + license validation                     | ✅ v0.7.0            |
 | 8 - 9 | Briefing CLI + npm publish + SKILL.md update      | ✅ v0.8.0 + ✅ v0.8.1 |
 | 10    | LLM draft enhancement — Pro tier outreach email generation      | ✅ v0.10.0           |
+| 11    | Gumroad license validation with offline cache      | ✅ v0.11.0           |
 
 ---
 

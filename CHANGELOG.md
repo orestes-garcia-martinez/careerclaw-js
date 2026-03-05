@@ -10,6 +10,47 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.11.0] — 2026-03-05
+
+### Added
+
+- `src/license.ts` — `checkLicense(key, options?)` → `Promise<LicenseResult>`:
+  Gumroad Pro license validation with 7-day offline cache; raw key never
+  written to disk — only `sha256(key)` cached; `{ valid: false, source: "none" }`
+  returned immediately when `CAREERCLAW_GUMROAD_PRODUCT_ID` is unset so Free
+  tier users are unaffected; `fetchFn` and `cachePath` injectable for offline tests
+- `src/tests/license.test.ts` — 12 offline tests covering the missing product ID
+  guard, fresh/stale/missing/wrong-key cache branches, all Gumroad API response
+  variants (success, refunded, chargebacked, 404, 500), never-throws invariant,
+  and hash safety (raw key must not appear in cache file)
+
+### Changed
+
+- `src/briefing.ts` — bare `proKey` presence check replaced with
+  `await checkLicense(proKey)`; `isProActive` is now driven by
+  `licenseResult.valid`; `BriefingOptions` gains `licenseFetchFn` and
+  `licenseCachePath` for test injection
+- `src/config.ts` — added `GUMROAD_PRODUCT_ID`, `GUMROAD_API_BASE`,
+  `LICENSE_CACHE_TTL_MS` (7 days in ms); `POLAR_PRODUCT_SLUG` and
+  `POLAR_API_BASE` retained and marked `@deprecated` with
+  `TODO: Phase 11-Polar` migration comment
+- `.env.example` — Pro purchase URL updated to Gumroad;
+  `CAREERCLAW_GUMROAD_PRODUCT_ID=` added with dashboard instructions
+
+### Security
+
+- Raw license key is never written to disk; only `sha256(key)` is persisted
+- Gumroad validation uses `increment_uses_count=false` — validation calls
+  do not consume customer usage quota
+
+### Notes
+
+270 tests across 16 files, all passing. `tsc --noEmit` clean.
+No new production dependencies. Polar migration path preserved via
+`@deprecated` constants and `TODO: Phase 11-Polar` comment in `config.ts`.
+
+---
+
 ## [0.10.0] — 2026-03-05
 
 ### Added

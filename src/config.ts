@@ -44,7 +44,7 @@ export const HTTP_TIMEOUT_MS = 15_000;
  * Identifies the tool and provides a contact point per robots.txt convention.
  */
 export const USER_AGENT =
-	"careerclaw-js/0.10.0 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
+	"careerclaw-js/0.11.0 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
 
 // ---------------------------------------------------------------------------
 // Job sources
@@ -136,15 +136,41 @@ export const LLM_CIRCUIT_BREAKER_FAILS: number = parseInt(
 // Licensing (Pro tier)
 // ---------------------------------------------------------------------------
 
-/** Polar.sh Pro license key. Never written to disk raw — only a hash is cached. */
+/** CareerClaw Pro license key. Never written to disk raw — only a SHA-256 hash is cached. */
 export const PRO_KEY: string | undefined = process.env["CAREERCLAW_PRO_KEY"];
 
+// ---------------------------------------------------------------------------
+// Gumroad license validation (active payment processor)
+// ---------------------------------------------------------------------------
+
 /**
- * Polar.sh product slug for license validation.
- * Purchase URL: https://polar.sh/orestes-garcia-martinez/careerclaw-pro
+ * Gumroad product ID for license key verification.
+ *
+ * Find it in your Gumroad dashboard — product — Content — License key module.
+ * Required for Pro license validation. If unset, checkLicense() returns
+ * { valid: false, source: "none" } immediately — Free tier still works.
  */
+export const GUMROAD_PRODUCT_ID: string | undefined =
+	process.env["CAREERCLAW_GUMROAD_PRODUCT_ID"];
+
+/** Gumroad license verification API base URL. */
+export const GUMROAD_API_BASE = "https://api.gumroad.com";
+
+/**
+ * How long a cached license validation remains valid without re-checking
+ * the Gumroad API. After this window the cache is stale and a live API
+ * call is required.
+ */
+export const LICENSE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// ---------------------------------------------------------------------------
+// Polar.sh (future migration — not yet active)
+// TODO: Phase 11-Polar — swap GUMROAD_* for POLAR_* once Polar is configured
+// ---------------------------------------------------------------------------
+
+/** @deprecated Polar is not yet the active processor. Use GUMROAD_* constants. */
 export const POLAR_PRODUCT_SLUG =
 	process.env["CAREERCLAW_POLAR_SLUG"] ?? "careerclaw-pro";
 
-/** Polar.sh API base URL for license validation (Phase 7). */
+/** @deprecated Polar is not yet the active processor. Use GUMROAD_API_BASE. */
 export const POLAR_API_BASE = "https://api.polar.sh";
