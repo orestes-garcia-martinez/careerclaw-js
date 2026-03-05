@@ -10,6 +10,41 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.10.0] — 2026-03-05
+
+### Added
+
+- `src/llm-enhance.ts` — `enhanceDraft(job, profile, resumeIntel, draft, gapKeywords, options)`:
+  Pro tier LLM-powered outreach draft generation; parses `LLM_CHAIN` into a left-to-right failover
+  list; per-candidate retry loop up to `LLM_MAX_RETRIES`; circuit breaker opens after
+  `LLM_CIRCUIT_BREAKER_FAILS` consecutive failures; `_chainOverride` for offline testing
+- `src/tests/llm-enhance.test.ts` — 12 offline tests covering Anthropic path, OpenAI path,
+  HTTP error fallback, unparseable response fallback, never-throws invariant, circuit breaker
+  call-count bounds, privacy (raw resume text must not appear in outbound request payload),
+  and empty-chain no-op
+
+### Changed
+
+- `src/briefing.ts` — `BriefingOptions` gains `resumeIntel?: ResumeIntelligence`,
+  `proKey?: string`, `enhanceFetchFn?`; draft stage converted to `async`; calls `enhanceDraft()`
+  per match when `proKey` is set — falls back to deterministic baseline on any LLM failure
+- `src/cli.ts` — calls `buildResumeIntelligence()` after resume load; passes `resumeIntel` and
+  `PRO_KEY` to `runBriefing()`; Pro enhancement path is now live from the CLI
+
+### Security
+
+- LLM prompt contains only extracted keyword signals (`impact_signals` ≤ 12 tokens,
+  `gap_keywords` ≤ 6 tokens) — raw resume text and `resume_summary` are never sent to
+  any external API
+
+### Notes
+
+258 tests across 15 files, all passing. `tsc --noEmit` clean. No new production dependencies.
+License validation (`CAREERCLAW_PRO_KEY` checked against Gumroad) is deferred to Phase 11 (v0.11.0) —
+`proKey` is trusted by presence only in this version.
+
+---
+
 ## [0.8.1] — 2026-03-04
 
 ### Fixed
