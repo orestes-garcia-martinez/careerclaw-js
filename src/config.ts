@@ -45,7 +45,7 @@ export const HTTP_TIMEOUT_MS = 15_000;
  * Identifies the tool and provides a contact point per robots.txt convention.
  */
 export const USER_AGENT =
-	"careerclaw-js/0.8.0 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
+	"careerclaw-js/0.8.1 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
 
 // ---------------------------------------------------------------------------
 // Job sources
@@ -89,8 +89,19 @@ export const DEFAULT_TOP_K = 3;
 // ---------------------------------------------------------------------------
 
 /**
- * Anthropic API key for LLM draft enhancement.
- * Only read when the Pro tier is active.  Never written to disk.
+ * Provider-specific LLM keys for draft enhancement (recommended).
+ * These take precedence over the legacy CAREERCLAW_LLM_KEY.
+ * Never written to disk or logged.
+ */
+export const LLM_ANTHROPIC_KEY: string | undefined =
+	process.env["CAREERCLAW_ANTHROPIC_KEY"];
+
+export const LLM_OPENAI_KEY: string | undefined =
+	process.env["CAREERCLAW_OPENAI_KEY"];
+
+/**
+ * Legacy single-key override. Used when the provider-specific key above
+ * is absent. Not recommended for mixed failover chains.
  */
 export const LLM_API_KEY: string | undefined = process.env["CAREERCLAW_LLM_KEY"];
 
@@ -98,9 +109,29 @@ export const LLM_API_KEY: string | undefined = process.env["CAREERCLAW_LLM_KEY"]
 export const LLM_PROVIDER: string =
 	process.env["CAREERCLAW_LLM_PROVIDER"] ?? "anthropic";
 
-/** Model to use for draft enhancement. */
+/** Model to use for draft enhancement. Default: fast, low-cost Haiku. */
 export const LLM_MODEL: string =
-	process.env["CAREERCLAW_LLM_MODEL"] ?? "claude-sonnet-4-20250514";
+	process.env["CAREERCLAW_LLM_MODEL"] ?? "claude-haiku-4-5-20251001";
+
+/**
+ * Comma-separated provider/model failover chain.
+ * Tried left to right on failure.
+ */
+export const LLM_CHAIN: string =
+	process.env["CAREERCLAW_LLM_CHAIN"] ??
+	"anthropic/claude-haiku-4-5-20251001,openai/gpt-4o-mini";
+
+/** Max retries per chain candidate before trying the next. */
+export const LLM_MAX_RETRIES: number = parseInt(
+	process.env["CAREERCLAW_LLM_MAX_RETRIES"] ?? "2",
+	10
+);
+
+/** Consecutive failures before the circuit breaker opens. */
+export const LLM_CIRCUIT_BREAKER_FAILS: number = parseInt(
+	process.env["CAREERCLAW_LLM_CIRCUIT_BREAKER_FAILS"] ?? "2",
+	10
+);
 
 // ---------------------------------------------------------------------------
 // Licensing (Pro tier)

@@ -17,7 +17,7 @@
 // ---------------------------------------------------------------------------
 
 /**
- * Combined stopword set: common English function words and recruitment
+ * Combined stopword set: common English function words + recruitment
  * boilerplate terms that carry zero signal value for job matching.
  *
  * Recruitment boilerplate sourced from PR-E signal hygiene analysis
@@ -32,6 +32,9 @@ export const STOPWORDS: ReadonlySet<string> = new Set([
   "would", "could", "should", "may", "might", "shall", "can", "need",
   "dare", "ought", "used", "it", "its", "this", "that", "these", "those",
   "i", "you", "he", "she", "we", "they", "me", "him", "her", "us",
+  // Contractions
+  "i'm", "i've", "i'll", "i'd", "you're", "we're", "they're", "it's",
+  "don't", "doesn't", "can't", "won't", "isn't", "aren't", "wasn't", "weren't",
   "them", "my", "your", "his", "our", "their", "what", "which", "who",
   "whom", "when", "where", "why", "how", "all", "each", "every", "both",
   "few", "more", "most", "other", "some", "such", "no", "not", "only",
@@ -140,7 +143,7 @@ export function tokenizeUnique(text: string): string[] {
  * Extract bigrams and trigrams from a token stream.
  *
  * Tokens are joined with a space: ["senior", "engineer"] → "senior engineer".
- * Phrases from short token streams (< 2 tokens) are returned as an empty array.
+ * Phrases from short token streams (< 2 tokens) are returned as empty array.
  */
 export function extractPhrases(tokens: string[]): string[] {
   const phrases: string[] = [];

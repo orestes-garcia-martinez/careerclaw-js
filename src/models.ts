@@ -147,10 +147,11 @@ export interface BriefingRun {
  * All values are in [0, 1].
  */
 export interface MatchBreakdown {
-  keyword_score: number;
-  experience_score: number;
-  salary_score: number;
-  work_mode_score: number;
+  /** Raw Jaccard-like keyword overlap score in [0, 1]. */
+  keyword: number;
+  experience: number;
+  salary: number;
+  work_mode: number;
 }
 
 /**

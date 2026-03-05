@@ -1,26 +1,60 @@
 /**
  * matching/scoring.ts — Pure per-dimension scoring functions.
  *
- * Each function returns a value in [0, 1].
- * Neutral value (0.5) is used when there is insufficient data to score,
- * so missing job data neither rewards nor penalises the composite score.
+ * Each dimension function returns a value in [0, 1].
+ * Neutral (0.5) is used when data is missing so absent fields neither
+ * reward nor penalise the composite score.
+ *
+ * compositeScore() uses a multiplicative model:
+ *
+ *   total = sqrt(keyword_score) × qualityBase
+ *
+ * where qualityBase = weighted sum of experience + salary + work_mode.
+ *
+ * This means keyword overlap is a signal multiplier, not just another
+ * additive term. A job with zero keyword overlap scores 0.0 regardless
+ * of how well it matches on salary or work mode — solving the problem
+ * of irrelevant jobs floating to the top on neutral dimension scores.
+ *
+ * sqrt() softens the penalty for partial keyword matches: a job with
+ * 25% keyword overlap gets a signal of 0.5 (not 0.25), so genuine
+ * partial matches are still surfaced meaningfully.
  *
  * All functions are pure and stateless — safe to unit test in isolation.
  */
 
-import type { NormalizedJob, UserProfile, WorkMode } from "../models.js";
-import { tokenizeUnique, tokenOverlap, matchedTokens, gapTokens } from "../core/text-processing.js";
+import type { NormalizedJob, UserProfile, MatchBreakdown } from "../models.js";
+import {
+  tokenizeUnique,
+  tokenOverlap,
+  matchedTokens,
+  gapTokens,
+} from "../core/text-processing.js";
 
 // ---------------------------------------------------------------------------
-// Score weights (must sum to 1.0)
+// Weights for the quality dimensions (must sum to 1.0)
 // ---------------------------------------------------------------------------
 
-export const WEIGHTS = {
-  keyword: 0.50,
-  experience: 0.20,
-  salary: 0.15,
-  work_mode: 0.15,
+/**
+ * Quality dimension weights — applied AFTER the keyword signal multiplier.
+ * These normalise the three metadata dimensions to a [0, 1] quality base.
+ *
+ * Originating weights (additive model):
+ *   experience 20%, salary 15%, work_mode 15%  →  sum = 50%
+ * Normalised to sum to 1.0 for the quality base:
+ *   experience 0.4, salary 0.3, work_mode 0.3
+ */
+const QUALITY_WEIGHTS = {
+  experience: 0.4,
+  salary: 0.3,
+  work_mode: 0.3,
 } as const;
+
+// Verify weights sum to 1.0 at module load time
+const _weightSum = Object.values(QUALITY_WEIGHTS).reduce((a, b) => a + b, 0);
+if (Math.abs(_weightSum - 1.0) > 1e-9) {
+  throw new Error(`QUALITY_WEIGHTS must sum to 1.0, got ${_weightSum}`);
+}
 
 // ---------------------------------------------------------------------------
 // Keyword score
@@ -39,7 +73,6 @@ export function scoreKeyword(
   profile: UserProfile,
   job: NormalizedJob
 ): { score: number; matched: string[]; gaps: string[] } {
-  // Build profile token set from all available text signals
   const profileText = [
     ...profile.skills,
     ...profile.target_roles,
@@ -53,11 +86,11 @@ export function scoreKeyword(
     return { score: 0.0, matched: [], gaps: [] };
   }
 
-  const score = tokenOverlap(profileTokens, jobTokens);
-  const matched = matchedTokens(profileTokens, jobTokens);
-  const gaps = gapTokens(jobTokens, profileTokens);
-
-  return { score, matched, gaps };
+  return {
+    score: tokenOverlap(profileTokens, jobTokens),
+    matched: matchedTokens(profileTokens, jobTokens),
+    gaps: gapTokens(jobTokens, profileTokens),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -67,10 +100,10 @@ export function scoreKeyword(
 /**
  * Score alignment between user experience years and job requirements.
  *
- * - Returns neutral 0.5 if the job specifies no experience requirement.
- * - Returns neutral 0.5 if the user has no experience years set.
+ * - Returns neutral 0.5 if either side has no data.
+ * - Returns 1.0 if the job requires 0 years.
  * - Clamped linear: user_years / job_years, capped at 1.0.
- *   (Over-qualified candidates are not penalised.)
+ *   Over-qualified candidates are not penalised.
  */
 export function scoreExperience(
   profile: UserProfile,
@@ -93,11 +126,9 @@ export function scoreExperience(
 /**
  * Score alignment between user salary expectations and the job's posted range.
  *
- * - Returns neutral 0.5 if the job has no salary data.
- * - Returns neutral 0.5 if the user has no salary minimum set.
- * - Returns 1.0 if the job's minimum salary meets or exceeds the user's minimum.
- * - Returns a proportional score < 1.0 if the job pays less than the user's
- *   minimum, clamped to [0, 1].
+ * - Returns neutral 0.5 if either side has no data.
+ * - Returns 1.0 if job minimum meets or exceeds user minimum.
+ * - Proportional score if job pays less, clamped to [0, 1].
  */
 export function scoreSalary(
   profile: UserProfile,
@@ -109,7 +140,6 @@ export function scoreSalary(
   if (userMin === null || userMin === undefined) return 0.5;
   if (jobMin === null || jobMin === undefined) return 0.5;
   if (userMin === 0) return 1.0;
-
   if (jobMin >= userMin) return 1.0;
 
   return Math.max(jobMin / userMin, 0.0);
@@ -122,11 +152,10 @@ export function scoreSalary(
 /**
  * Score alignment between user work mode preference and job work mode.
  *
- * - Returns 1.0 on exact match (remote↔remote, hybrid↔hybrid, onsite↔onsite).
- * - Returns 0.5 if either side is null (insufficient data, neutral).
- * - Returns 0.5 if one side is hybrid (partial match — hybrid is compatible
- *   with both remote and onsite in practice).
- * - Returns 0.0 on a hard mismatch (e.g. user wants remote, job is onsite).
+ * - Returns 1.0 on exact match.
+ * - Returns 0.5 if either side is null (insufficient data).
+ * - Returns 0.5 if one side is hybrid (partial compatibility).
+ * - Returns 0.0 on hard mismatch (remote vs onsite).
  */
 export function scoreWorkMode(
   profile: UserProfile,
@@ -138,32 +167,56 @@ export function scoreWorkMode(
   if (userMode === null || userMode === undefined) return 0.5;
   if (jobMode === null || jobMode === undefined) return 0.5;
   if (userMode === jobMode) return 1.0;
-
-  // Hybrid is a partial match against both remote and onsite
   if (userMode === "hybrid" || jobMode === "hybrid") return 0.5;
 
-  // Hard mismatch: remote vs onsite
   return 0.0;
 }
 
 // ---------------------------------------------------------------------------
-// Composite score
+// Composite score — multiplicative model
 // ---------------------------------------------------------------------------
 
 /**
- * Compute the weighted composite score from individual dimension scores.
- * Weights are defined in WEIGHTS and must sum to 1.0.
+ * Compute the weighted composite score.
+ *
+ * Formula:
+ *   qualityBase = (experience × 0.4) + (salary × 0.3) + (work_mode × 0.3)
+ *   total       = sqrt(keyword) × qualityBase
+ *
+ * The keyword score acts as a signal multiplier:
+ *   - keyword = 0.0 → total = 0.0 always (the "dentist fix")
+ *   - keyword = 1.0 → total = qualityBase
+ *   - keyword = 0.25 → signal = 0.5 (sqrt softens partial-match penalty)
  */
-export function compositeScore(scores: {
-  keyword: number;
-  experience: number;
-  salary: number;
-  work_mode: number;
-}): number {
-  return (
-    scores.keyword * WEIGHTS.keyword +
-    scores.experience * WEIGHTS.experience +
-    scores.salary * WEIGHTS.salary +
-    scores.work_mode * WEIGHTS.work_mode
-  );
+export function compositeScore(
+  profile: UserProfile,
+  job: NormalizedJob
+): { total: number; breakdown: MatchBreakdown; matched: string[]; gaps: string[] } {
+  const kw = scoreKeyword(profile, job);
+  const experience = scoreExperience(profile, job);
+  const salary = scoreSalary(profile, job);
+  const work_mode = scoreWorkMode(profile, job);
+
+  const qualityBase =
+    experience * QUALITY_WEIGHTS.experience +
+    salary     * QUALITY_WEIGHTS.salary +
+    work_mode  * QUALITY_WEIGHTS.work_mode;
+
+  const signal = Math.sqrt(kw.score);
+  const total = roundScore(signal * qualityBase);
+
+  return {
+    total,
+    breakdown: { keyword: kw.score, experience, salary, work_mode },
+    matched: kw.matched,
+    gaps: kw.gaps,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function roundScore(n: number): number {
+  return Math.round(n * 10_000) / 10_000;
 }
