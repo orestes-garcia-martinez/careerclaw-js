@@ -34,6 +34,7 @@ import { fetchAllJobs, type FetchResult } from "./sources.js";
 import { rankJobs } from "./matching/index.js";
 import { draftOutreach } from "./drafting.js";
 import { enhanceDraft, type EnhanceOptions } from "./llm-enhance.js";
+import { checkLicense, type CheckLicenseOptions } from "./license.js";
 import { TrackingRepository } from "./tracking.js";
 import { DEFAULT_TOP_K } from "./config.js";
 
@@ -63,8 +64,8 @@ export interface BriefingOptions {
   resumeIntel?: ResumeIntelligence;
   /**
    * CareerClaw Pro license key (CAREERCLAW_PRO_KEY).
-   * When set, enables LLM-enhanced drafts via enhanceDraft().
-   * Phase 11 will validate this key against Gumroad before activating.
+   * Validated against Gumroad before enabling LLM-enhanced drafts.
+   * Falls back to deterministic draft if validation fails.
    */
   proKey?: string;
   /**
@@ -72,6 +73,15 @@ export interface BriefingOptions {
    * Defaults to global fetch. Pass a stub in tests.
    */
   enhanceFetchFn?: EnhanceOptions["fetchFn"];
+  /**
+   * Injectable fetch for the Gumroad license API call.
+   * Defaults to global fetch. Pass a stub in tests.
+   */
+  licenseFetchFn?: CheckLicenseOptions["fetchFn"];
+  /**
+   * Override the license cache file path — for tests using a tmpdir.
+   */
+  licenseCachePath?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,9 +112,21 @@ export async function runBriefing(
     resumeIntel,
     proKey,
     enhanceFetchFn,
+    licenseFetchFn,
+    licenseCachePath,
   } = options;
 
-  const isProActive = !!(proKey && proKey.trim().length > 0 && resumeIntel);
+  // Validate Pro license before enabling LLM enhancement.
+  // Runs only when proKey is present; result degrades gracefully on network
+  // failure (cached result used for up to LICENSE_CACHE_TTL_MS = 7 days).
+  let isProActive = false;
+  if (proKey && proKey.trim().length > 0 && resumeIntel) {
+    const licenseOptions: import("./license.js").CheckLicenseOptions = {};
+    if (licenseFetchFn !== undefined) licenseOptions.fetchFn = licenseFetchFn;
+    if (licenseCachePath !== undefined) licenseOptions.cachePath = licenseCachePath;
+    const licenseResult = await checkLicense(proKey, licenseOptions);
+    isProActive = licenseResult.valid;
+  }
 
   const runAt = new Date().toISOString();
   const runId = randomUUID();
