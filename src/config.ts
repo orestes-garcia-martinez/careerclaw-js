@@ -8,7 +8,6 @@
  */
 
 import { join } from "node:path";
-import { homedir } from "node:os";
 
 // ---------------------------------------------------------------------------
 // Runtime directory
@@ -21,7 +20,7 @@ import { homedir } from "node:os";
  */
 export const CAREERCLAW_DIR: string =
 	process.env["CAREERCLAW_DIR"] ??
-	join(process.env["HOME"] ?? homedir(), ".careerclaw");
+	join(process.cwd(), ".careerclaw");
 
 export const PROFILE_PATH: string = join(CAREERCLAW_DIR, "profile.json");
 export const TRACKING_PATH: string = join(CAREERCLAW_DIR, "tracking.json");

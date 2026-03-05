@@ -78,6 +78,9 @@ web_modules/
 .next
 out
 
+# CareerClaw local
+.careerclaw
+
 # Nuxt.js build / generate output
 .nuxt
 dist
