@@ -26,8 +26,10 @@ import {
   PROFILE_PATH,
   RESUME_TXT_PATH,
   DEFAULT_TOP_K,
+  PRO_KEY,
 } from "./config.js";
 import type { UserProfile, BriefingResult, ScoredJob, OutreachDraft } from "./models.js";
+import { buildResumeIntelligence } from "./resume-intel.js";
 
 // ---------------------------------------------------------------------------
 // Arg parsing
@@ -175,15 +177,28 @@ async function main(): Promise<void> {
   // profile.skills + profile.resume_summary already provide the correct
   // matching corpus. Resume intelligence will be wired as a weighted
   // signal layer when the LLM enhancement module ships.
+  // Resume text is loaded and converted to keyword signals for LLM enhancement.
+  // Raw text is NEVER forwarded to the LLM — only extracted impact_signals.
   const resumePath = resumeTxtPath ?? (existsSync(RESUME_TXT_PATH) ? RESUME_TXT_PATH : null);
-  if (resumePath && !jsonMode) {
-    const resumeText = loadResumeTxt(resumePath);
-    if (resumeText) {
+  let resumeText: string | null = null;
+  if (resumePath) {
+    resumeText = loadResumeTxt(resumePath);
+    if (resumeText && !jsonMode) {
       console.log(`Resume loaded: ${resumePath} (ready for Pro enhancement)`);
     }
   }
 
-  const result = await runBriefing(profile, { topK, dryRun });
+  const intelParams: Parameters<typeof buildResumeIntelligence>[0] = {
+    resume_summary: profile.resume_summary ?? "",
+    skills: profile.skills,
+    target_roles: profile.target_roles,
+  };
+  if (resumeText) intelParams.resume_text = resumeText;
+  const resumeIntel = buildResumeIntelligence(intelParams);
+
+  const briefingOptions: Parameters<typeof runBriefing>[1] = { topK, dryRun, resumeIntel };
+  if (PRO_KEY) briefingOptions.proKey = PRO_KEY;
+  const result = await runBriefing(profile, briefingOptions);
 
   if (jsonMode) {
     process.stdout.write(JSON.stringify(result, null, 2) + "\n");

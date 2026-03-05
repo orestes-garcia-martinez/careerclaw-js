@@ -28,10 +28,12 @@ import type {
   OutreachDraft,
   BriefingRun,
   BriefingResult,
+  ResumeIntelligence,
 } from "./models.js";
 import { fetchAllJobs, type FetchResult } from "./sources.js";
 import { rankJobs } from "./matching/index.js";
 import { draftOutreach } from "./drafting.js";
+import { enhanceDraft, type EnhanceOptions } from "./llm-enhance.js";
 import { TrackingRepository } from "./tracking.js";
 import { DEFAULT_TOP_K } from "./config.js";
 
@@ -54,6 +56,22 @@ export interface BriefingOptions {
    * standard paths. Pass a tmpdir-backed instance in tests.
    */
   repo?: TrackingRepository;
+  /**
+   * Resume intelligence from buildResumeIntelligence().
+   * Required for LLM draft enhancement — ignored when proKey is absent.
+   */
+  resumeIntel?: ResumeIntelligence;
+  /**
+   * CareerClaw Pro license key (CAREERCLAW_PRO_KEY).
+   * When set, enables LLM-enhanced drafts via enhanceDraft().
+   * Phase 11 will validate this key against Gumroad before activating.
+   */
+  proKey?: string;
+  /**
+   * Injectable fetch for the LLM API calls — passed through to enhanceDraft().
+   * Defaults to global fetch. Pass a stub in tests.
+   */
+  enhanceFetchFn?: EnhanceOptions["fetchFn"];
 }
 
 // ---------------------------------------------------------------------------
@@ -81,7 +99,12 @@ export async function runBriefing(
     dryRun = false,
     fetchFn = fetchAllJobs,
     repo = new TrackingRepository({ dryRun }),
+    resumeIntel,
+    proKey,
+    enhanceFetchFn,
   } = options;
+
+  const isProActive = !!(proKey && proKey.trim().length > 0 && resumeIntel);
 
   const runAt = new Date().toISOString();
   const runId = randomUUID();
@@ -113,8 +136,21 @@ export async function runBriefing(
   // Stage 3: Draft
   // -------------------------------------------------------------------------
   const draftStart = Date.now();
-  const drafts: OutreachDraft[] = matches.map((scored) =>
-    draftOutreach(scored.job, profile, scored.matched_keywords)
+  const drafts: OutreachDraft[] = await Promise.all(
+    matches.map(async (scored) => {
+      const baseline = draftOutreach(scored.job, profile, scored.matched_keywords);
+      if (isProActive) {
+        return enhanceDraft(
+          scored.job,
+          profile,
+          resumeIntel!,
+          baseline,
+          scored.gap_keywords,
+          enhanceFetchFn !== undefined ? { fetchFn: enhanceFetchFn } : {}
+        );
+      }
+      return baseline;
+    })
   );
   const draftMs = Date.now() - draftStart;
 
