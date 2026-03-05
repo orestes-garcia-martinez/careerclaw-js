@@ -1,25 +1,25 @@
 /**
  * adapters/remoteok.ts — RemoteOK RSS adapter.
  *
- * Fetches the RemoteOK RSS feed and normalizes each <item> into a
- * NormalizedJob. Parsing is split from fetching, so contract tests can
+ * Fetches the RemoteOK RSS feed and normalises each <item> into a
+ * NormalizedJob. Parsing is split from fetching so contract tests can
  * call parseRss() directly with fixture XML — no network mocking needed.
  *
  * RemoteOK RSS structure (abridged):
  *   <item>
  *     <title><![CDATA[Senior Engineer at Acme]]></title>
  *     <link>https://remoteok.com/remote-jobs/123</link>
- *     <pubDate>Tue, 03 Mar 2026 10:00:00 +0000</pubDate>
+ *     <pubDate>Mon, 03 Mar 2026 10:00:00 +0000</pubDate>
  *     <description><![CDATA[<p>HTML description...</p>]]></description>
- *     <location>Worldwide</location> <!-- optional -->
- *     <salary>$120,000 - $180,000</salary> <!-- optional -->
+ *     <location>Worldwide</location>          <!-- optional -->
+ *     <salary>$120,000 - $180,000</salary>    <!-- optional -->
  *     <company><![CDATA[Acme Corp]]></company> <!-- optional -->
- *     <tag>typescript</tag> <!-- 0-n tags -->
+ *     <tag>typescript</tag>                    <!-- 0-n tags -->
  *   </item>
  */
 
 import { createHash } from "node:crypto";
-
+import { XMLParser } from "fast-xml-parser";
 import { utcNow } from "../models.js";
 import type { NormalizedJob, WorkMode } from "../models.js";
 import {
@@ -27,7 +27,6 @@ import {
   REMOTEOK_RSS_URL,
   USER_AGENT,
 } from "../config.js";
-import {XMLParser} from "fast-xml-parser";
 
 // ---------------------------------------------------------------------------
 // Types for the raw RSS parse tree
@@ -139,7 +138,7 @@ function normaliseItem(item: RssItem, fetched_at: string): NormalizedJob {
 
 /**
  * Split "Senior Engineer at Acme Corp" → { title, company }.
- * Falls back to the raw company field if present, then empty string.
+ * Falls back to raw company field if present, then empty string.
  */
 function parseTitle(
   raw: string,
@@ -229,6 +228,10 @@ export function stripHtml(html: string): string {
     .replace(/&#x27;/g, "'")
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
+    .replace(/&#x2F;/gi, "/")
+    .replace(/&#x([0-9a-f]{1,6});/gi, (_, hex) =>
+      String.fromCodePoint(parseInt(hex, 16))
+    )
     .replace(/&nbsp;/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -245,7 +248,7 @@ function coerceString(val: unknown): string {
   if (typeof val === "string") return val;
   if (typeof val === "number") return String(val);
   // CDATA objects from fast-xml-parser
-  if (typeof val === "object" && "__cdata" in val) {
+  if (typeof val === "object" && val !== null && "__cdata" in val) {
     return String((val as Record<string, unknown>)["__cdata"] ?? "");
   }
   return "";

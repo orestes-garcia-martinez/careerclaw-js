@@ -11,5 +11,4 @@ export {
   scoreSalary,
   scoreWorkMode,
   compositeScore,
-  WEIGHTS,
 } from "./scoring.js";

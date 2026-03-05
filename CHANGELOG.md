@@ -10,6 +10,42 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.1] — 2026-03-04
+
+### Fixed
+
+- **Dentist problem**: replaced additive composite score with a multiplicative model (`total = sqrt(keyword) × qualityBase`);
+  zero keyword overlap now always produces a score of 0.0 regardless of metadata alignment — irrelevant jobs can no longer float to the
+  top on neutral dimension scores
+- Signal gate added to `rankJobs()`: jobs with keyword score below `minKeywordScore` (default: 0.01) are hard-filtered before ranking
+- `matched_keywords` and `gap_keywords` were hardcoded empty in `engine.ts`; now wired from `compositeScore()` output
+- HTML entity `&#x2F;` (and all `&#x[hex];` sequences) now decoded in `stripHtml()` — fixes `ML&#x2F;AI` appearing in HN job titles and
+  gap tokens
+- `stripHtml()` now applied to parsed HN job title and company name (previously body text only)
+- Contraction tokens (`i'm`, `i've`, `don't`, etc.) added to `STOPWORDS` — eliminates noise in gap keyword output
+
+### Changed
+
+- `MatchBreakdown` field names renamed: `keyword_score → keyword`, `experience_score → experience`, `salary_score → salary`,
+  `work_mode_score → work_mode`
+- `compositeScore()` return type extended: now includes `matched` and `gaps` string arrays alongside `total` and `breakdown`
+- Default LLM model updated: `claude-sonnet-4-20250514` → `claude-haiku-4-5-20251001`
+- `scripts/smoke_briefing.ts` refactored to multi-profile mode; select profile via `PROFILE=0|1|2` env var
+
+### Added
+
+- `.env.example` — full credential reference (OpenClaw gateway, agent LLM keys, Pro license, draft enhancement keys, failover chain config)
+- `SECURITY.md` — local-first security architecture, credential handling policy, external network call inventory, LLM data disclosure
+- `src/config.ts`: `LLM_ANTHROPIC_KEY`, `LLM_OPENAI_KEY`, `LLM_CHAIN`, `LLM_MAX_RETRIES`, `LLM_CIRCUIT_BREAKER_FAILS`
+- `scripts/smoke_llm.ts` — LLM connectivity and Pro key smoke test; `npm run smoke:llm`
+
+### Notes
+
+234 tests across 13 files, all passing. No new production dependencies.
+`MatchBreakdown` rename is a breaking internal change — no public API consumers exist prior to the CLI (Phase 9).
+
+---
+
 ## [0.8.0] — 2026-03-04
 
 ### Added
@@ -239,6 +275,7 @@ matching, or CLI are included yet — those follow in Phases 2–8 per the
 Node Migration Decision (ADR, March 2026).
 
 [Unreleased]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.8.0...HEAD
+[0.8.1]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/orestes-garcia-martinez/careerclaw-js/compare/v0.5.0...v0.6.0

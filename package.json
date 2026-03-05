@@ -1,6 +1,6 @@
 {
   "name": "careerclaw-js",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "AI-powered job search automation for OpenClaw — Node.js rewrite of CareerClaw",
   "type": "module",
   "main": "dist/index.js",
@@ -14,7 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "smoke": "npx tsx scripts/smoke_sources.ts",
+    "smoke:sources": "npx tsx scripts/smoke_sources.ts",
+    "smoke:briefing": "npx tsx scripts/smoke_briefing.ts",
+    "smoke:llm": "npx tsx --env-file=.env scripts/smoke_llm.ts",
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist"
   },

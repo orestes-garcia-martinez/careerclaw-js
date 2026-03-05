@@ -2,15 +2,15 @@
  * adapters/hackernews.ts — Hacker News "Who is Hiring?" Firebase adapter.
  *
  * Flow:
- *   1. GET /v0/item/{threadId}.json → thread item with `kids` array
+ *   1. GET /v0/item/{threadId}.json  → thread item with `kids` array
  *   2. GET /v0/item/{commentId}.json → one comment per kid (parallel)
  *   3. Parse each comment: first line is "Company | Role | Location | ..."
  *      remainder is the job description.
  *
- * Parsing is split from fetching, so contract tests can call
+ * Parsing is split from fetching so contract tests can call
  * parseComment() directly with fixture JSON — no network mocking needed.
  *
- * HN comment text is HTML — tags are stripped before normalization.
+ * HN comment text is HTML — tags are stripped before normalisation.
  * Deleted/dead items (no `text` field or `deleted: true`) are skipped.
  */
 
@@ -87,12 +87,15 @@ export function parseComment(item: HnItem, fetched_at?: string): NormalizedJob {
 
   const plainText = stripHtml(item.text);
 
-  // Split on the first blank line — header vs. body
+  // Split on the first blank line — header vs body
   const newlineIdx = plainText.indexOf("\n");
   const headerLine = newlineIdx >= 0 ? plainText.slice(0, newlineIdx).trim() : plainText.trim();
   const bodyText = newlineIdx >= 0 ? plainText.slice(newlineIdx + 1).trim() : "";
 
-  const { company, title, location } = parseHeader(headerLine);
+  const rawHeader = parseHeader(headerLine);
+  const company = stripHtml(rawHeader.company);
+  const title = stripHtml(rawHeader.title);
+  const location = rawHeader.location;
   const description = bodyText || headerLine;
 
   const canonical_url = `https://news.ycombinator.com/item?id=${item.id}`;
@@ -128,7 +131,7 @@ export function parseComment(item: HnItem, fetched_at?: string): NormalizedJob {
  *   "Acme | Senior Engineer | Remote | Full-time"
  *   "Acme | Senior Engineer | Remote"
  *   "Acme (hiring) | Engineer"
- *   "Acme - Senior Engineer - Remote" ← less common, dash separator
+ *   "Acme - Senior Engineer - Remote"  ← less common, dash separator
  */
 function parseHeader(header: string): {
   company: string;
@@ -145,7 +148,7 @@ function parseHeader(header: string): {
   const company = parts[0] ?? "";
   const title = parts[1] ?? "";
   // Location is usually the 3rd segment; if it looks like a work-mode
-  // keyword or a city, use it. Otherwise, leave empty.
+  // keyword or a city, use it. Otherwise leave empty.
   const location = parts[2] ?? "";
 
   return { company, title, location };
