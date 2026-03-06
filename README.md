@@ -231,17 +231,18 @@ Copy `.env.example` to `.env` and fill in your values.
 ## Roadmap
 
 | Phase | Scope | Status |
-|---|---|---|
-| 1 | Models + config | ✅ v0.1.0 |
-| 2 | RemoteOK + HN adapters | ✅ v0.2.0 |
-| 3 | Source aggregation + text processing | ✅ v0.3.0 |
-| 4 | Matching engine + scoring | ✅ v0.4.0 |
-| 5 | Requirements + resume intelligence + gap analysis | ✅ v0.5.0 |
-| 6 | Deterministic drafting | ✅ v0.6.0 |
-| 7 | Tracking + run log | ✅ v0.7.0 |
-| 8–9 | Briefing pipeline + CLI + npm publish | ✅ v0.8.0–v0.8.1 |
-| 10 | LLM draft enhancement (Pro) | ✅ v0.10.0 |
-| 11 | Gumroad license validation + offline cache | ✅ v0.11.0 |
+|-------|---|---|
+| 1     | Models + config | ✅ v0.1.0 |
+| 2     | RemoteOK + HN adapters | ✅ v0.2.0 |
+| 3     | Source aggregation + text processing | ✅ v0.3.0 |
+| 4     | Matching engine + scoring | ✅ v0.4.0 |
+| 5     | Requirements + resume intelligence + gap analysis | ✅ v0.5.0 |
+| 6     | Deterministic drafting | ✅ v0.6.0 |
+| 7     | Tracking + run log | ✅ v0.7.0 |
+| 8–9   | Briefing pipeline + CLI + npm publish | ✅ v0.8.0–v0.8.1 |
+| 10    | LLM draft enhancement (Pro) | ✅ v0.10.0 |
+| 11    | Gumroad license validation + offline cache | ✅ v0.11.0 |
+| 12    | Release prep + ClawHub publish | ✅ v1.0.0 |
 
 
 ---

@@ -1,6 +1,6 @@
 ---
 name: CareerClaw
-version: 0.11.0
+version: 1.0.0
 description: >
   Run a job search briefing, find job matches, draft outreach emails,
   or track job applications. Triggers on: daily briefing, job search,
@@ -196,7 +196,7 @@ auto-install packages — the agent is responsible for ensuring the correct
 version is present.
 
 ```bash
-EXPECTED="0.11.0"
+EXPECTED="1.0.0"
 INSTALLED=$(careerclaw-js --version 2>/dev/null || echo "")
 if [ "$INSTALLED" != "$EXPECTED" ]; then
   npm install -g careerclaw-js@$EXPECTED
@@ -374,7 +374,7 @@ status without waiting to be asked. Use `job_id` from the briefing JSON.
       "draft_ms": 1400,
       "persist_ms": 5
     },
-    "version": "0.11.0"
+    "version": "1.0.0"
   },
   "matches": [
     {
