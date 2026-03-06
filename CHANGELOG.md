@@ -10,6 +10,48 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.0] — 2026-03-06
+
+### Added
+
+- `SKILL.md` full rewrite (Phase 12): Agent Persona section; zero-config resume
+  intake; Daily Stand-up behavior (reads `tracking.json` on session start,
+  surfaces still-live and undrafted jobs); Strategic Gap Closing (coach tone
+  for matches with gaps > 0.6 score); Sunday Night Strategy (first weekday of
+  month = HN priority, Sunday evening prompt, Monday/Friday timing context);
+  Tier-1 upsell trigger (Google, Meta, Apple, Stripe, Airbnb, Netflix);
+  Free vs Pro comparison table; `optionalEnv` frontmatter for all 12 env vars
+- `RELEASE_CHECKLIST.md` — pre-publish gate, npm publish steps, VirusTotal
+  scan instructions, OpenClaw test gate, ClawHub submission checklist
+
+### Changed
+
+- `src/llm-enhance.ts` — OpenAI dual-transport support: `gpt-4o` family uses
+  `/v1/chat/completions` with `max_completion_tokens`; newer models (gpt-5.x+)
+  use `/v1/responses` with `max_output_tokens`; transport auto-detected via
+  `defaultOpenAITransport(model)` and injectable per `ChainCandidate`;
+  `SYSTEM_PROMPT` rewritten with Bridge Sentence method as core doctrine,
+  250/300-word hard limits, 22 banned phrases by name; `buildPrompt()` updated
+  with explicit word limit and Bridge Sentence paragraph-level instruction
+- `src/config.ts` — `CAREERCLAW_DIR` empty-string guard: `??` replaced with
+  `.trim().length > 0` check so blank `CAREERCLAW_DIR=` in `.env` correctly
+  falls back to `.careerclaw/`
+- `scripts/smoke_llm.ts` — Pro key section now calls `checkLicense()` live
+  against Gumroad when both keys are set; stale "not yet implemented" message
+  removed; Polar.sh URL replaced with Gumroad URL
+- `README.md` — Polar.sh references replaced with Gumroad; CLI commands
+  corrected (no `briefing` subcommand); `--resume-pdf` removed (not
+  implemented); env vars table updated; roadmap updated through Phase 13
+
+### Notes
+
+270 tests across 16 files, all passing. `tsc --noEmit` clean.
+No new production dependencies. First ClawHub-ready release.
+OpenAI transport validated against gpt-4o-mini (chat) and gpt-5.2 (responses)
+in live smoke testing.
+
+---
+
 ## [0.11.0] — 2026-03-05
 
 ### Added
