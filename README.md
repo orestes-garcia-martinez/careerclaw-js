@@ -1,5 +1,7 @@
 # careerclaw-js
 
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-Clean-green?logo=virustotal)](https://www.virustotal.com/gui/url/6a963f3ea8ee854f3c735bd84d20d12fb8a9f5962de7f16bf9f0b1b2f94df3ac/detection)
+
 [![CI](https://github.com/orestes-garcia-martinez/careerclaw-js/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/orestes-garcia-martinez/careerclaw-js/actions/workflows/ci.yml)
 
 **Privacy-first job search automation for OpenClaw — Node.js / TypeScript.**
