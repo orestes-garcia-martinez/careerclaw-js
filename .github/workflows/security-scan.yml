@@ -1,0 +1,23 @@
+name: Security Scan (VirusTotal)
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  vt_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: VirusTotal Scan
+        uses: cssnr/virustotal-action@v1
+        with:
+          # Scans the repository URL itself
+          vt_api_key: ${{ secrets.VIRTUAL_TOTAL_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+          # This appends the scan link directly to your Release notes
+          update_release: true
+          release_heading: '🛡️ **VirusTotal Security Report:**'
