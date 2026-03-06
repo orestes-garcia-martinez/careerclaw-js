@@ -18,9 +18,12 @@ import { join } from "node:path";
  * Mirrors Python's `.careerclaw/` convention.
  * Can be overridden via CAREERCLAW_DIR for testing.
  */
+const envCareerClawDir = process.env["CAREERCLAW_DIR"]?.trim();
+
 export const CAREERCLAW_DIR: string =
-	process.env["CAREERCLAW_DIR"] ??
-	join(process.cwd(), ".careerclaw");
+	envCareerClawDir && envCareerClawDir.length > 0
+		? envCareerClawDir
+		: join(process.cwd(), ".careerclaw");
 
 export const PROFILE_PATH: string = join(CAREERCLAW_DIR, "profile.json");
 export const TRACKING_PATH: string = join(CAREERCLAW_DIR, "tracking.json");

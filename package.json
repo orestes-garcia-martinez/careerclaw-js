@@ -19,7 +19,11 @@
     "smoke:sources": "npx tsx scripts/smoke_sources.ts",
     "smoke:briefing": "npx tsx scripts/smoke_briefing.ts",
     "smoke:llm": "npx tsx --env-file=.env scripts/smoke_llm.ts",
-    "cli": "tsx src/cli.ts --profile .careerclaw/profile.json --resume-txt .careerclaw/resume.txt --dry-run"
+    "debugging:license": "npx tsx --env-file=.env scripts/debug_license.ts",
+    "debugging:pro": "npx tsx --env-file=.env scripts/debug_pro_gate.ts",
+    "debugging:llm-response": "npx tsx --env-file=.env scripts/debug_llm_response.ts",
+    "cli": "tsx src/cli.ts --profile .careerclaw/profile.json --resume-txt .careerclaw/resume.txt --dry-run",
+    "cli:enhanced": "npx tsx --env-file=.env src/cli.ts --json --dry-run"
   },
   "files": [
     "dist",
