@@ -10,9 +10,8 @@
  *   3. LLM API connectivity (minimal prompt → valid response)
  *
  * What this does NOT test (deferred until LLM enhancement module ships):
- *   - Pro license validation against Polar.sh
  *   - Draft enhancement quality or word count
- *   - Failover chain behaviour
+ *   - Failover chain behavior
  *
  * Usage:
  *   # Load from .env file (Node 20+)
@@ -32,6 +31,7 @@
 
 import {
   PRO_KEY,
+  GUMROAD_PRODUCT_ID,
   LLM_ANTHROPIC_KEY,
   LLM_OPENAI_KEY,
   LLM_API_KEY,
@@ -39,6 +39,7 @@ import {
   LLM_MODEL,
   LLM_CHAIN,
 } from "../src/config.js";
+import { checkLicense } from "../src/license.js";
 
 const PASS = "\x1b[32m✓\x1b[0m";
 const FAIL = "\x1b[31m✗\x1b[0m";
@@ -138,18 +139,34 @@ async function run(): Promise<void> {
   let passed = 0;
   let failed = 0;
 
-  // ---- 1. Pro key presence ----
+  // ---- 1. Pro license validation ----
   console.log(`${BOLD}1. Pro License Key${RESET}`);
-  if (PRO_KEY && PRO_KEY.trim().length > 0) {
+  if (!PRO_KEY || PRO_KEY.trim().length === 0) {
+    console.log(`  ${FAIL} CAREERCLAW_PRO_KEY is not set`);
+    console.log(`       Purchase: https://ogm.gumroad.com/l/careerclaw-pro`);
+    failed++;
+  } else if (!GUMROAD_PRODUCT_ID) {
     console.log(`  ${PASS} CAREERCLAW_PRO_KEY is set (${redact(PRO_KEY)})`);
-    console.log(`  ${WARN} License validation against Polar.sh is deferred`);
-    console.log(`       (license module not yet implemented in careerclaw-js)`);
+    console.log(`  ${WARN} CAREERCLAW_GUMROAD_PRODUCT_ID not set — skipping live Gumroad validation`);
+    console.log(`       Add it to .env to enable license checks.`);
     passed++;
   } else {
-    console.log(`  ${FAIL} CAREERCLAW_PRO_KEY is not set`);
-    console.log(`       Set it to test Pro tier features.`);
-    console.log(`       Purchase: https://polar.sh/orestes-garcia-martinez/products/careerclaw-pro`);
-    failed++;
+    console.log(`  ${PASS} CAREERCLAW_PRO_KEY is set (${redact(PRO_KEY)})`);
+    process.stdout.write(`  Validating against Gumroad… `);
+    try {
+      const result = await checkLicense(PRO_KEY);
+      if (result.valid) {
+        console.log(`${PASS} valid (source: ${result.source})`);
+        passed++;
+      } else {
+        console.log(`${FAIL} invalid or not found (source: ${result.source})`);
+        console.log(`       Check your CAREERCLAW_PRO_KEY value.`);
+        failed++;
+      }
+    } catch (err) {
+      console.log(`${WARN} Gumroad threw unexpectedly: ${String(err)}`);
+      failed++;
+    }
   }
   console.log();
 
