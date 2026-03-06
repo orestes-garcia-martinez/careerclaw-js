@@ -189,6 +189,32 @@ Surface timing context once per session when it's genuinely relevant. Don't forc
 
 ---
 
+## Runtime Check (Self-Healing Install)
+
+**Run this before every `careerclaw-js` command.** The gateway does not
+auto-install packages — the agent is responsible for ensuring the correct
+version is present.
+
+```bash
+EXPECTED="0.11.0"
+INSTALLED=$(careerclaw-js --version 2>/dev/null || echo "")
+if [ "$INSTALLED" != "$EXPECTED" ]; then
+  npm install -g careerclaw-js@$EXPECTED
+fi
+```
+
+**How it works:**
+- `careerclaw-js --version` prints the installed version or fails silently
+- If missing or wrong version → `npm install -g` installs the pinned version
+- On match → no-op, proceeds immediately
+- The `EXPECTED` version always matches this SKILL.md's `version:` frontmatter field
+
+**When a new version is published**, this SKILL.md is updated with the new
+`version:` and new `EXPECTED` value. The check triggers automatically on the
+next run — the user never needs to reinstall manually.
+
+---
+
 ## First-Time Setup
 
 ### Step 1 — Zero-config resume intake
