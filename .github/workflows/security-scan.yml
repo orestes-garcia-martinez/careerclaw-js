@@ -15,7 +15,7 @@ jobs:
         uses: cssnr/virustotal-action@v1
         with:
           # Scans the repository URL itself
-          vt_api_key: ${{ secrets.VIRUSTOTAL_API_KEY }}
+          vt_api_key: ${{ secrets.VIRTUAL_TOTAL_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
           # This appends the scan link directly to your Release notes
