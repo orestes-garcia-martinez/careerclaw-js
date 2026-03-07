@@ -138,7 +138,6 @@ Add to your `.env`:
 
 ```env
 CAREERCLAW_PRO_KEY=YOUR-KEY-HERE
-CAREERCLAW_GUMROAD_PRODUCT_ID=YOUR-PRODUCT-ID
 CAREERCLAW_OPENAI_KEY=sk-...
 ```
 
@@ -216,7 +215,6 @@ Runtime files — all stored under `.careerclaw/`:
 | Variable | Description |
 |---|---|
 | `CAREERCLAW_PRO_KEY` | Pro license key (Gumroad) |
-| `CAREERCLAW_GUMROAD_PRODUCT_ID` | Gumroad product ID for license validation |
 | `CAREERCLAW_ANTHROPIC_KEY` | Anthropic API key for LLM draft enhancement |
 | `CAREERCLAW_OPENAI_KEY` | OpenAI API key for LLM draft enhancement |
 | `CAREERCLAW_LLM_KEY` | Legacy single-provider key fallback |

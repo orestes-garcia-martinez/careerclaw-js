@@ -18,8 +18,6 @@ metadata:
     optionalEnv:
       - name: CAREERCLAW_PRO_KEY
         description: "CareerClaw Pro license key. Unlocks LLM-enhanced outreach drafts and cover letters."
-      - name: CAREERCLAW_GUMROAD_PRODUCT_ID
-        description: "Gumroad product ID for license validation (find in dashboard → Content tab)."
       - name: CAREERCLAW_ANTHROPIC_KEY
         description: "Anthropic API key for Pro LLM draft enhancement (preferred)."
       - name: CAREERCLAW_OPENAI_KEY
@@ -337,7 +335,6 @@ After purchase, the license key is emailed immediately.
 
 ```env
 CAREERCLAW_PRO_KEY=YOUR-KEY-HERE
-CAREERCLAW_GUMROAD_PRODUCT_ID=YOUR-PRODUCT-ID
 CAREERCLAW_ANTHROPIC_KEY=sk-ant-...
 ```
 
