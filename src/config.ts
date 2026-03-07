@@ -149,12 +149,9 @@ export const PRO_KEY: string | undefined = process.env["CAREERCLAW_PRO_KEY"];
 /**
  * Gumroad product ID for license key verification.
  *
- * Find it in your Gumroad dashboard — product — Content — License key module.
- * Required for Pro license validation. If unset, checkLicense() returns
- * { valid: false, source: "none" } immediately — Free tier still works.
+ * Internal constant — not configurable via environment variables.
  */
-export const GUMROAD_PRODUCT_ID: string | undefined =
-	process.env["CAREERCLAW_GUMROAD_PRODUCT_ID"];
+export const GUMROAD_PRODUCT_ID = "RFgXMtGajXKJfDvpZOXtfA==";
 
 /** Gumroad license verification API base URL. */
 export const GUMROAD_API_BASE = "https://api.gumroad.com";
