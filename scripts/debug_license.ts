@@ -10,7 +10,6 @@ console.log("\n=== License Debug Trace ===\n");
 // Step 1 — env vars as seen by Node
 console.log("1. Env vars (raw):");
 console.log(`   PRO_KEY             = ${JSON.stringify(process.env["CAREERCLAW_PRO_KEY"])}`);
-console.log(`   GUMROAD_PRODUCT_ID  = ${JSON.stringify(process.env["CAREERCLAW_GUMROAD_PRODUCT_ID"])}`);
 
 // Step 2 — config constants after parsing
 console.log("\n2. Config constants:");
