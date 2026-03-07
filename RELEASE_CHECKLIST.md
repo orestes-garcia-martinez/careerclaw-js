@@ -40,11 +40,11 @@ Before tagging, confirm these 3 locations are updated to the new version:
 Verify with:
 
 ```bash
-grep -rn "0\.11\.0\|1\.0\.0" package.json src/config.ts SKILL.md README.md CHANGELOG.md src/tests/models.test.ts
+grep -rn "1\.0\.0" package.json src/config.ts SKILL.md README.md CHANGELOG.md src/tests/models.test.ts
 ```
 
 ```powershell
-Select-String -Path "package.json", "src/config.ts", "SKILL.md", "README.md", "CHANGELOG.md", "src/tests/models.test.ts" -Pattern "0\.11\.0", "1\.0\.0"
+Select-String -Path "package.json", "src/config.ts", "SKILL.md", "README.md", "CHANGELOG.md", "src/tests/models.test.ts" -Pattern "1\.0\.0"
 ```
 
 ---
