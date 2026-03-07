@@ -47,7 +47,7 @@ export const HTTP_TIMEOUT_MS = 15_000;
  * Identifies the tool and provides a contact point per robots.txt convention.
  */
 export const USER_AGENT =
-	"careerclaw-js/1.0.0 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
+	"careerclaw-js/1.0.1 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
 
 // ---------------------------------------------------------------------------
 // Job sources
@@ -149,12 +149,9 @@ export const PRO_KEY: string | undefined = process.env["CAREERCLAW_PRO_KEY"];
 /**
  * Gumroad product ID for license key verification.
  *
- * Find it in your Gumroad dashboard — product — Content — License key module.
- * Required for Pro license validation. If unset, checkLicense() returns
- * { valid: false, source: "none" } immediately — Free tier still works.
+ * Internal constant — not configurable via environment variables.
  */
-export const GUMROAD_PRODUCT_ID: string | undefined =
-	process.env["CAREERCLAW_GUMROAD_PRODUCT_ID"];
+export const GUMROAD_PRODUCT_ID = "RFgXMtGajXKJfDvpZOXtfA==";
 
 /** Gumroad license verification API base URL. */
 export const GUMROAD_API_BASE = "https://api.gumroad.com";

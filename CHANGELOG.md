@@ -10,6 +10,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.1] - 2026-03-06
+
+### Changed
+- Hardened the public `SKILL.md` contract for ClawHub/OpenClaw deployment.
+- Standardized runtime behavior to a single install/execute approach:
+  - self-healing install with `npm install -g careerclaw-js@"$EXPECTED"`
+  - direct execution with `careerclaw-js ...`
+- Updated required runtime bins to match the Node/npm execution path.
+- Scoped CareerClaw behavior more clearly as an invoked skill instead of a session-wide assistant.
+- Simplified first-run onboarding around canonical `.careerclaw/resume.txt` handling.
+- Reduced first-run friction by keeping setup resume-first and minimizing follow-up questions.
+
+### Improved
+- Restored Strategic Gap Closing behavior so CareerClaw can act more like a practical career consultant when the fit is imperfect.
+- Improved recommendation tone and guidance for fatal, acceptable, and bridgeable gaps.
+- Cleaned up Pro activation flow so premium setup is only introduced when it is actually needed.
+- Restored the public Gumroad purchase link for CareerClaw Pro while keeping internal product IDs out of user-facing setup.
+
+### Removed
+- Removed internal Gumroad product ID exposure from the public skill surface.
+- Removed Python compatibility messaging from `SKILL.md` to keep the public skill contract focused on the current Node-based experience.
+
+---
+
 ## [1.0.0] — 2026-03-06
 
 ### Added

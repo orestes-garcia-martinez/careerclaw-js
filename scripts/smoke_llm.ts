@@ -145,11 +145,6 @@ async function run(): Promise<void> {
     console.log(`  ${FAIL} CAREERCLAW_PRO_KEY is not set`);
     console.log(`       Purchase: https://ogm.gumroad.com/l/careerclaw-pro`);
     failed++;
-  } else if (!GUMROAD_PRODUCT_ID) {
-    console.log(`  ${PASS} CAREERCLAW_PRO_KEY is set (${redact(PRO_KEY)})`);
-    console.log(`  ${WARN} CAREERCLAW_GUMROAD_PRODUCT_ID not set — skipping live Gumroad validation`);
-    console.log(`       Add it to .env to enable license checks.`);
-    passed++;
   } else {
     console.log(`  ${PASS} CAREERCLAW_PRO_KEY is set (${redact(PRO_KEY)})`);
     process.stdout.write(`  Validating against Gumroad… `);
