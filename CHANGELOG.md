@@ -10,6 +10,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.3] - 2026-03-08
+
+### Fixed
+- Agent no longer presents a multi-question setup form when profile is missing — redirects to resume upload only
+- Agent no longer invents career frameworks, phases, or methodologies not defined in this file
+- Agent no longer enters consultant mode during first-time setup
+
+### Changed
+- Rewrote SKILL.md from persona/behavior narrative format to numbered runbook format
+- Added hard Rules section at top with six explicit prohibitions
+- Added profile existence check (Step 1) as hard gate before any command runs
+- Setup flow now asks one question at a time — work mode first, salary second
+- Removed Agent Persona, Behavior 1, and Behavior 2 sections entirely
+- Bumped runtime self-healing check expected version to 1.0.3
+
+---
+
 ## [1.0.2] - 2026-03-07
 
 ### Fixed
