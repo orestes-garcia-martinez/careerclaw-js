@@ -10,6 +10,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.4] - 2026-03-08
+
+### Changed
+- Runtime check replaced — no more auto-install, just a non-blocking update nudge
+- Write-failure gate added in Step 3
+- Resume write failed row added to error table
+
+---
+
 ## [1.0.3] - 2026-03-08
 
 ### Fixed
