@@ -10,6 +10,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.2] - 2026-03-07
+
+### Fixed
+- Behavior 2 (Strategic Gap Closing) no longer fires during First-Time Setup.
+  The agent was entering consultant mode after resume intake and ending setup
+  with open-ended targeting questions instead of proceeding to the first briefing.
+
+### Changed
+- Added explicit activation gate to Behavior 2: only applies after setup is
+  complete and only when the user asks a listed trigger phrase.
+- Step 2 of First-Time Setup now specifies a strict exit condition: collect
+  work mode and salary floor, then proceed directly to Step 3 with no
+  analysis, strategy suggestions, or targeting options.
+- Added three entries to "What Not to Do" to reinforce setup boundaries.
+
+---
+
 ## [1.0.1] - 2026-03-06
 
 ### Changed
