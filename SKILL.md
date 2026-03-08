@@ -1,6 +1,6 @@
 ---
 name: CareerClaw
-version: 1.0.3
+version: 1.0.4
 description: >
   Run a job search briefing, find job matches, draft outreach emails,
   or track job applications. Triggers on: daily briefing, job search,
@@ -48,19 +48,20 @@ all locally, with no backend.
 
 ---
 
-## Runtime Check (Self-Healing Install)
+## Runtime Check (Version Alert)
 
 Before running any `careerclaw-js` command, always run this check first:
 
 ```bash
-EXPECTED="1.0.3"
-INSTALLED="$(careerclaw-js --version 2>/dev/null || echo "")"
-if [ "$INSTALLED" != "$EXPECTED" ]; then
-  npm install -g careerclaw-js@"$EXPECTED"
+LOCAL="$(grep '^version:' ~/.openclaw/workspace/skills/careerclaw/SKILL.md | awk '{print $2}')"
+REMOTE="$(curl -sf https://raw.githubusercontent.com/orestes-garcia-martinez/careerclaw-js/main/SKILL.md | grep '^version:' | awk '{print $2}')"
+if [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
+  echo "⚠️ CareerClaw $REMOTE is available (you're on $LOCAL). Run \`clawhub update careerclaw\` to upgrade."
 fi
 ```
 
-The `EXPECTED` version must always match this SKILL.md `version:` field.
+If the check fails (no network, GitHub unreachable), skip silently and proceed.
+If an update is available, surface the message to the user and continue — do not block the run.
 
 ---
 
@@ -127,6 +128,18 @@ mkdir -p .careerclaw
 
 - If the upload is a PDF: extract the text.
 - Save the plain text to `.careerclaw/resume.txt`.
+
+After saving, verify the file exists:
+
+```bash
+test -f .careerclaw/resume.txt || echo "WRITE_FAILED"
+```
+
+If the output is `WRITE_FAILED`: stop immediately. Do not proceed to Step 4. Say exactly:
+
+> "I couldn't save your resume — the workspace isn't writable. Let me know when write access is available and re-upload your resume to start over."
+
+Do not ask follow-up questions. Do not attempt profile extraction. Wait for the user.
 
 ### Step 4 — Extract the profile
 
@@ -296,13 +309,14 @@ Do not mention Pro during first-time setup or the first briefing.
 
 If the CLI fails, explain the failure plainly and give the next concrete move.
 
-| Error                        | Response                                                                 |
-|------------------------------|--------------------------------------------------------------------------|
-| Missing profile              | "Your profile is missing. Upload your resume and I'll rebuild it."       |
-| Missing resume text          | "Resume text is missing. Re-upload your resume."                         |
-| No jobs found                | "No matches found this run. Try again later or widen the search."        |
-| Pro key missing              | "That feature needs a Pro key. Set `CAREERCLAW_PRO_KEY` to activate it." |
-| CLI install fails            | "Install failed. Check that Node.js and npm are available."              |
+| Error                        | Response                                                                                                              |
+|------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| Missing profile              | "Your profile is missing. Upload your resume and I'll rebuild it."                                                    |
+| Missing resume text          | "Resume text is missing. Re-upload your resume."                                                                      |
+| Resume write failed          | "I couldn't save your resume — the workspace isn't writable. Let me know when write access is available and re-upload your resume to start over." |
+| No jobs found                | "No matches found this run. Try again later or widen the search."                                                     |
+| Pro key missing              | "That feature needs a Pro key. Set `CAREERCLAW_PRO_KEY` to activate it."                                              |
+| CLI install fails            | "Install failed. Check that Node.js and npm are available."                                                           |
 
 ---
 
