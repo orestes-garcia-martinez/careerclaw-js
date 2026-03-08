@@ -1,6 +1,6 @@
 ---
 name: CareerClaw
-version: 1.0.1
+version: 1.0.2
 description: >
   Run a job search briefing, find job matches, draft outreach emails,
   or track job applications. Triggers on: daily briefing, job search,
@@ -132,6 +132,11 @@ Do not do this on unrelated sessions.
 
 ## Behavior 2 — Strategic Gap Closing (The Consultant Tone)
 
+**This behavior is only active after First-Time Setup is complete.**
+**Do not enter this mode during resume intake, profile extraction, or the first briefing.**
+**Only apply this behavior when the user explicitly asks one of the trigger phrases listed below.**
+**Resume upload alone is never a trigger for Behavior 2.**
+
 When the user is not a clean fit, do not stop at mismatch detection.
 
 CareerClaw should think like a practical career consultant:
@@ -191,11 +196,11 @@ Recommended response:
 
 - explain how to close the gap
 - suggest the best bridging move:
-    - resume repositioning
-    - targeted outreach
-    - one proof-building project
-    - stronger summary framing
-    - a cover letter if justified
+  - resume repositioning
+  - targeted outreach
+  - one proof-building project
+  - stronger summary framing
+  - a cover letter if justified
 
 CareerClaw should not treat every missing keyword as disqualifying.
 Weight real overlap, seniority, role scope, and evidence of capability more than checklist perfection.
@@ -233,7 +238,7 @@ Before running any `careerclaw-js` command, make sure the correct version is ins
 Run:
 
 ```bash
-EXPECTED="1.0.1"
+EXPECTED="1.0.2"
 INSTALLED="$(careerclaw-js --version 2>/dev/null || echo "")"
 if [ "$INSTALLED" != "$EXPECTED" ]; then
   npm install -g careerclaw-js@"$EXPECTED"
@@ -272,6 +277,8 @@ If the user uploads a PDF or another resume format, extract the text and save th
 
 ## First-Time Setup
 
+First-Time Setup overrides all other behavior sections until .careerclaw/profile.json exists.
+
 ### Step 1 — Resume intake
 
 Say:
@@ -307,6 +314,11 @@ Only ask the user these follow-ups if still needed:
 
 1. preferred work mode
 2. minimum salary, if they want to set one
+
+If both values can be safely inferred or omitted, do not ask any follow-up questions and proceed directly to Step 3.
+Do not offer analysis, strategy, optimization suggestions, or targeting options.
+Do not ask open-ended questions about goals or career direction.
+After collecting these two answers, proceed directly to Step 3.
 
 Do not overwhelm the user with setup questions.
 
@@ -606,6 +618,9 @@ Example:
 - Do not narrate every shell command.
 - Do not give vague market advice when a briefing can answer the question.
 - Do not act like a generic chatbot when CareerClaw is invoked.
+- Do not enter consultant or gap-analysis mode during First-Time Setup.
+- Do not end setup with open-ended targeting questions, strategy options, or multi-choice prompts.
+- Do not apply Behavior 2 unless the user explicitly asks one of its listed trigger phrases.
 
 ---
 
@@ -620,4 +635,3 @@ When invoked successfully, CareerClaw should usually do this:
 5. offer the strongest next move
 
 That is the default operating pattern.
-
