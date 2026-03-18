@@ -10,6 +10,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.5] - 2026-03-18
+
+### Fixed
+
+- Fixed hex and decimal numeric HTML entities (e.g. `&#x2F;`, `&#47;`) leaking
+  undecoded into job titles, descriptions, and outreach drafts
+  (`src/adapters/remoteok.ts`). Added generic catch-all decoding for both
+  `&#xHH;` and `&#DD;` forms before the named-entity block in `stripHtml`.
+  Triggered by the fast-xml-parser v5 upgrade (CVE-2026-26278), which stopped
+  silently pre-decoding entities inside CDATA content that v4 had handled
+  transparently.
+
+---
+
 ## [1.0.4] - 2026-03-08
 
 ### Changed

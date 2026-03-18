@@ -129,7 +129,7 @@ describe("BriefingRun shape", () => {
 				draft_ms: 80,
 				persist_ms: 20,
 			},
-			version: "1.0.4",
+			version: "1.0.5",
 		};
 		expect(run.jobs_matched).toBe(3);
 		expect(run.dry_run).toBe(false);
