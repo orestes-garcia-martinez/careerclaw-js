@@ -80,6 +80,12 @@ export function parseRss(xml: string): NormalizedJob[] {
   const parser = new XMLParser({
     ignoreAttributes: false,
     cdataPropName: "__cdata",
+    processEntities: {
+      enabled: true,
+      // Increased to 50k to handle very large, HTML-heavy RSS feeds
+      maxTotalExpansions: 50000,
+      maxExpandedLength: 20 * 1024 * 1024, // 20MB
+    },
     isArray: (_name, jpath) => jpath === "rss.channel.item",
   });
 
@@ -93,7 +99,6 @@ export function parseRss(xml: string): NormalizedJob[] {
     try {
       return [normaliseItem(item, fetched_at)];
     } catch {
-      // Skip malformed items rather than aborting the whole feed
       return [];
     }
   });
@@ -212,15 +217,26 @@ function parsePubDate(raw: string): string | null {
 // ---------------------------------------------------------------------------
 
 /**
- * Strip HTML tags and decode common entities.
- * Intentionally minimal — avoids a DOM/cheerio dependency.
+ * Clean HTML tags and decode entities.
+ * Shared by both RemoteOK (XML) and Hacker News (JSON).
  */
 export function stripHtml(html: string): string {
+  if (!html) return "";
+
   return html
+    // 1. Handle common block elements for readable spacing
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<p[^>]*>/gi, "\n")   // opening <p> → newline (creates split point)
+    .replace(/<p[^>]*>/gi, "\n")
     .replace(/<\/p>/gi, "")
+
+    // 2. Strip all remaining tags
     .replace(/<[^>]+>/g, "")
+
+    // 3. Decode numeric entities first (hex and decimal) — catches &#x2F;, &#47;, etc.
+    .replace(/&#x([0-9a-fA-F]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+
+    // 4. Decode named entities (Essential for HN JSON data)
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -228,11 +244,9 @@ export function stripHtml(html: string): string {
     .replace(/&#x27;/g, "'")
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/&#x2F;/gi, "/")
-    .replace(/&#x([0-9a-f]{1,6});/gi, (_, hex) =>
-      String.fromCodePoint(parseInt(hex, 16))
-    )
     .replace(/&nbsp;/g, " ")
+
+    // 4. Final whitespace cleanup
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -247,9 +261,11 @@ function coerceString(val: unknown): string {
   if (val === null || val === undefined) return "";
   if (typeof val === "string") return val;
   if (typeof val === "number") return String(val);
-  // CDATA objects from fast-xml-parser
+
+  // Handing CDATA objects returned by the parser
   if (typeof val === "object" && val !== null && "__cdata" in val) {
-    return String((val as Record<string, unknown>)["__cdata"] ?? "");
+    const cdata = (val as Record<string, unknown>)["__cdata"];
+    return Array.isArray(cdata) ? cdata.join("") : String(cdata ?? "");
   }
   return "";
 }
