@@ -10,6 +10,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.6] - 2026-03-19
+
+### Fixed
+
+- Triggered by the fast-xml-parser 5.5.7, upgrade (CVE-2026-33349), 
+  which Entity Expansion Limits Bypassed When Set to Zero Due to JavaScript 
+  Falsy Evaluation in fast-xml-parser
+
+---
+
 ## [1.0.5] - 2026-03-18
 
 ### Fixed
