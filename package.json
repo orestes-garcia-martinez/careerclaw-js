@@ -1,6 +1,6 @@
 {
   "name": "careerclaw-js",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "AI-powered job search automation for OpenClaw — Node.js rewrite of CareerClaw",
   "type": "module",
   "main": "dist/index.js",
@@ -54,6 +54,6 @@
     "vitest": "^2.0.0"
   },
   "dependencies": {
-    "fast-xml-parser": "^5.5.6"
+    "fast-xml-parser": "^5.5.7"
   }
 }
