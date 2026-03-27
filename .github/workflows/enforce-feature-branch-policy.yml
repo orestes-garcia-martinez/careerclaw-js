@@ -15,47 +15,40 @@ jobs:
     name: Validate Branch Policy
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Check source branch name format
-        id: check-branch-name
         run: |
           SOURCE_BRANCH="${{ github.head_ref }}"
-          echo "Source branch: $SOURCE_BRANCH"
+          RELEASE_PLEASE_PATTERN="^release-please--branches--[a-zA-Z0-9._-]+--components--[a-zA-Z0-9._-]+$"
 
-          if [[ ! "$SOURCE_BRANCH" =~ ^(feature|claude)/.+ ]]; then
-            echo "::error::Branch '$SOURCE_BRANCH' does not follow the required naming convention."
-            echo "::error::PRs to main must come from a branch named: feature/<name> or claude/<name>"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          TRUSTED_RELEASE_BOT_PATTERN='^clawos-release-bot\[bot\]$'
+
+          echo "Checking branch: $SOURCE_BRANCH"
+          echo "PR created by: $PR_AUTHOR"
+
+          # 1. Allow Release Please branches created by the trusted bot
+          if [[ "$SOURCE_BRANCH" =~ $RELEASE_PLEASE_PATTERN ]]; then
+            if [[ "$PR_AUTHOR" =~ $TRUSTED_RELEASE_BOT_PATTERN ]]; then
+              echo "✓ Branch '$SOURCE_BRANCH' created by bot '$PR_AUTHOR'. Skipping naming convention check."
+              exit 0
+            else
+              echo "::error::Branch '$SOURCE_BRANCH' matches the Release Please pattern but was created by '$PR_AUTHOR', not a bot."
+              exit 1
+            fi
+          fi
+
+          # 2. Standard naming convention enforcement for human contributors
+          VALID_PREFIXES='^(feat|fix|build|chore|ci|docs|perf|refactor|revert|style|test|dependabot|claude|codex)/[a-z0-9./_-]+$'
+
+          if [[ ! "$SOURCE_BRANCH" =~ $VALID_PREFIXES ]]; then
+            echo "----------------------------------------------------------------"
+            echo "ERROR: Invalid branch name '$SOURCE_BRANCH'"
+            echo "Branch names must start with one of the following prefixes:"
+            echo "feat/, fix/, build/, chore/, ci/, docs/, perf/, refactor/, revert/, style/, test/, claude/, codex/, or dependabot/"
+            echo "Followed by lowercase alphanumeric characters, dots, slashes, underscores, or hyphens."
+            echo "Example: feat/add-new-feature"
+            echo "----------------------------------------------------------------"
             exit 1
           fi
 
-          echo "Branch name '$SOURCE_BRANCH' is valid."
-
-      - name: Check branch was created from main
-        id: check-branch-origin
-        run: |
-          SOURCE_BRANCH="${{ github.head_ref }}"
-
-          git fetch origin main
-          git fetch origin "$SOURCE_BRANCH"
-
-          MERGE_BASE=$(git merge-base origin/main "origin/$SOURCE_BRANCH")
-          echo "Merge base commit: $MERGE_BASE"
-
-          # Verify the merge base exists in the history of origin/main
-          if git merge-base --is-ancestor "$MERGE_BASE" origin/main && \
-             git merge-base --is-ancestor origin/main "$MERGE_BASE" 2>/dev/null; then
-            # merge base IS the tip of main: branch was cut directly from main
-            echo "Branch '$SOURCE_BRANCH' was created directly from the tip of main. OK."
-          else
-            # merge base must still be reachable from main (not from another branch)
-            if ! git merge-base --is-ancestor "$MERGE_BASE" origin/main; then
-              echo "::error::Branch '$SOURCE_BRANCH' was not created from main."
-              echo "::error::The feature branch must be branched off from the main branch."
-              exit 1
-            fi
-            echo "Branch '$SOURCE_BRANCH' originates from a commit on main. OK."
-          fi
+          echo "✓ Branch name '$SOURCE_BRANCH' follows the naming policy."
