@@ -100,15 +100,12 @@ Expected result: 0 detections. If any vendor flags it, investigate before publis
 
 ## Git tag + GitHub release
 
-```bash
-git tag -a v1.0.0 -m "v1.0.0 — First ClawHub release"
-git push origin v1.0.0
-```
+This step is automated via Release Please. When a release PR (titled `chore: release <version>`) is merged into `main`, the `clawos-release-bot` will:
 
-Create a GitHub release from the tag:
-- Title: `v1.0.0 — CareerClaw`
-- Body: paste the `[1.0.0]` section from `CHANGELOG.md`
-- Attach: `careerclaw-js-1.0.0.tgz` + VirusTotal scan URL
+1. Create and push the git tag (`v<version>`)
+2. Create the GitHub release with the changelog section as the body
+
+Attach the `careerclaw-js-<version>.tgz` and VirusTotal scan URL to the GitHub release manually after it is created.
 
 ---
 
