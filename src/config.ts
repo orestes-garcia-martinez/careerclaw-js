@@ -83,8 +83,14 @@ export const HN_MAX_COMMENTS = 200;
 // Briefing defaults
 // ---------------------------------------------------------------------------
 
-/** Default number of top matches to return. */
+/** Default number of top matches to return (matches free tier cap). */
 export const DEFAULT_TOP_K = 3;
+
+/** Maximum topK for free tier users. */
+export const FREE_TOP_K = 3;
+
+/** Maximum topK for Pro tier users. */
+export const PRO_TOP_K = 10;
 
 // ---------------------------------------------------------------------------
 // LLM (Pro tier)

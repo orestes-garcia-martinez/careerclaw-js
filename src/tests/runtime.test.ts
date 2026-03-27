@@ -181,3 +181,131 @@ describe("runCareerClawWithContext", () => {
     expect(result.drafts[0]?.llm_enhanced).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// topK tier clamping
+// ---------------------------------------------------------------------------
+
+function makeManyJobs(count: number): NormalizedJob[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeJob({
+      job_id: `job-topk-${i}`,
+      title: `Engineer Role ${i}`,
+      company: `Company ${i}`,
+      url: `https://example.com/job/topk-${i}`,
+    })
+  );
+}
+
+describe("topK tier clamping — ClawOS context", () => {
+  it("clamps topK to 3 for free-tier context even when 10 is requested", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "free",
+      features: [],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        topK: 10,
+        dryRun: true,
+      },
+      context,
+      {
+        fetchFn: stubFetch(makeManyJobs(15)),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.matches.length).toBeLessThanOrEqual(3);
+  });
+
+  it("allows topK up to 10 for Pro context with TOPK_EXTENDED", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [
+        CAREERCLAW_FEATURES.TOPK_EXTENDED,
+        CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT,
+      ],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 10,
+        dryRun: true,
+      },
+      context,
+      {
+        fetchFn: stubFetch(makeManyJobs(15)),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.matches.length).toBeGreaterThan(3);
+    expect(result.matches.length).toBeLessThanOrEqual(10);
+  });
+
+  it("clamps topK to 3 for Pro context WITHOUT TOPK_EXTENDED", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 10,
+        dryRun: true,
+      },
+      context,
+      {
+        fetchFn: stubFetch(makeManyJobs(15)),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.matches.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("topK tier clamping — standalone", () => {
+  it("clamps topK to 3 for standalone free (no Pro key)", async () => {
+    const result = await runCareerClawStandalone(
+      {
+        profile: makeProfile(),
+        topK: 10,
+        dryRun: true,
+      },
+      {
+        fetchFn: stubFetch(makeManyJobs(15)),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.matches.length).toBeLessThanOrEqual(3);
+  });
+
+  it("allows topK up to 10 for standalone Pro with valid license", async () => {
+    mockCheckLicense.mockResolvedValue({ valid: true, source: "api" });
+
+    const result = await runCareerClawStandalone(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 10,
+        dryRun: true,
+      },
+      {
+        proKey: "valid-pro-key",
+        fetchFn: stubFetch(makeManyJobs(15)),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.matches.length).toBeGreaterThan(3);
+    expect(result.matches.length).toBeLessThanOrEqual(10);
+  });
+});
