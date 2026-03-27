@@ -27,7 +27,7 @@ import { draftOutreach } from "./drafting.js";
 import { enhanceDraft, type EnhanceOptions } from "./llm-enhance.js";
 import { checkLicense, type CheckLicenseOptions } from "./license.js";
 import { TrackingRepository } from "./tracking.js";
-import { DEFAULT_TOP_K } from "./config.js";
+import { DEFAULT_TOP_K, FREE_TOP_K, PRO_TOP_K } from "./config.js";
 import {
   CAREERCLAW_FEATURES,
   hasCareerClawFeature,
@@ -117,6 +117,19 @@ async function runBriefingInternal(
 
   const isProActive = await resolvePremiumDraftAccess(executionMode, resumeIntel);
 
+  // Enforce tier-aware topK ceiling — the engine must not trust the caller.
+  // ClawOS checks the specific TOPK_EXTENDED feature (separate from draft access).
+  // Standalone uses isProActive since a valid license grants all Pro capabilities.
+  const hasExtendedTopK =
+    executionMode.kind === "clawos"
+      ? hasCareerClawFeature(
+          executionMode.context,
+          CAREERCLAW_FEATURES.TOPK_EXTENDED
+        )
+      : isProActive;
+  const maxTopK = hasExtendedTopK ? PRO_TOP_K : FREE_TOP_K;
+  const clampedTopK = Math.min(topK, maxTopK);
+
   const runAt = new Date().toISOString();
   const runId = randomUUID();
   const version = readPackageVersion();
@@ -133,7 +146,7 @@ async function runBriefingInternal(
   const { jobs, counts: sourceCounts } = fetchResult;
 
   const rankStart = Date.now();
-  const matches: ScoredJob[] = jobs.length > 0 ? rankJobs(jobs, profile, topK) : [];
+  const matches: ScoredJob[] = jobs.length > 0 ? rankJobs(jobs, profile, clampedTopK) : [];
   const rankMs = Date.now() - rankStart;
 
   const draftStart = Date.now();
