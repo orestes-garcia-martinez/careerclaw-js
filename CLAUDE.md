@@ -102,3 +102,77 @@ Strict mode with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and `
 ## JSON Compatibility
 
 `src/models.ts` schemas intentionally match the Python careerclaw implementation — profile, tracking, and run files are interchangeable between runtimes.
+
+## Ship Changes Workflow
+
+When asked to "ship changes", follow these steps in order:
+
+**1. Detect changes**
+Run `git status` and `git diff HEAD` to understand what has changed and which workspace(s) are affected.
+
+**2. Create a branch**
+Ensure the branch creation step is idempotent: if a branch with the generated name already exists,
+switch to it instead of trying to create a new one
+
+Name the branch `<type>/<short-description>` using the same types enforced by commitlint
+and the branch policy:
+
+- Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `build`, `perf`, `revert`, `style`
+
+Example: `feat/hackernews-adapter-update`
+
+**3. Commit**
+Stage only the relevant files (never `git add -A` blindly). Write a conventional commit message:
+
+```
+<type>(<scope>): <short imperative summary>
+
+<body explaining what changed and why — omit if obvious>
+```
+
+Valid scopes: `adapters`, `matching`, `llm`, `cli`, `tracking`, `resume-intel`, `gap`,
+`drafting`, `sources`, `config`, `models`, `execution-context`, `license`. Scope is optional
+but recommended when the change is confined to one module.
+
+Version bump rules (release-please):
+- `feat` → minor bump
+- `fix`, `perf` → patch bump
+- `feat!`, `fix!`, or `BREAKING CHANGE:` footer → major bump
+- `chore`, `docs`, `ci`, `build`, `refactor`, `style`, `test`, `revert` → no bump
+
+**4. Run unit tests and linting**
+
+```bash
+npm run lint
+npm run test
+```
+
+If either fails, **stop**. Explain what is failing and the approach to fix it — do not apply the fix code until I approve it.
+
+**5. Push and run smoke tests**
+
+```bash
+git push -u origin <branch>
+```
+
+Smoke tests require a populated `.env` with API keys. Skip `smoke:llm` if the change does
+not touch LLM, licensing, or Pro-gated paths.
+
+```bash
+npm run smoke:sources
+npm run smoke:briefing
+npm run smoke:llm
+```
+
+If smoke tests fail, **stop**. Explain what is failing and the approach to fix it — do not apply the fix code until I approve it.
+
+**6. Open a PR**
+
+```bash
+gh pr create \
+  --title "<same as commit subject>" \
+  --body "..."
+```
+
+PR body must include: **Summary** (bullet list of changes), **Test plan** (checklist), and
+**Release impact** (`feat` → minor bump, `fix`/`perf` → patch bump, `chore`/`docs`/`ci` → no bump).
