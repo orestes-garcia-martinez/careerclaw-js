@@ -6,6 +6,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.3.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.2.0...careerclaw-js-v1.3.0) (2026-03-27)
+
+
+### Features
+
+* **briefing:** enforce tier-aware topK ceiling ([5073061](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/50730612a323b709ccbe523651df8a5bc6c7211b))
+* **briefing:** enforce tier-aware topK ceiling ([6897c4e](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/6897c4ec98275c12c533369aaa0138976df350ee))
+
 ## [1.2.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.1.0...careerclaw-js-v1.2.0) (2026-03-27)
 
 
