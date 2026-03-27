@@ -10,6 +10,95 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.1.0] - 2026-03-26
+
+### Added
+
+- `src/execution-context.ts` — dual execution-context architecture for CareerClaw
+  runtimes; `ClawOsExecutionContext` (trusted platform path, `verified: true`,
+  feature list passed from upstream entitlement) and `StandaloneExecutionContext`
+  (local CLI / direct package use with Gumroad license validation);
+  `CAREERCLAW_FEATURES` constant registry with four feature flags
+  (`LLM_OUTREACH_DRAFT`, `TAILORED_COVER_LETTER`, `RESUME_GAP_ANALYSIS`,
+  `TOPK_EXTENDED`); `createClawOsExecutionContext()` and
+  `createStandaloneExecutionContext()` factory functions;
+  `hasCareerClawFeature()` type-safe feature check helper;
+  `CareerClawFeatureKey` union type derived from `CAREERCLAW_FEATURES`
+- `src/runtime.ts` — programmatic runtime wrappers providing the clean
+  import boundary for both ClawOS and standalone consumers;
+  `runCareerClawStandalone(input, options)` delegates to `runBriefing()` with
+  standalone license flow; `runCareerClawWithContext(input, context, options)`
+  delegates to `runBriefingWithContext()` with trusted platform context;
+  `resolveResumeIntelligence()` centralises resume-intel construction from
+  profile + optional resume text, eliminating duplicate logic across callers;
+  `CareerClawRunInput`, `CareerClawRunSupportOptions`, and
+  `CareerClawStandaloneRunOptions` interfaces for typed consumer APIs
+- `src/index.ts` — public API barrel export; re-exports `models`, `briefing`,
+  `runtime`, `resume-intel`, `execution-context`, `license`, `tracking`, and
+  `sources` modules; enables `import { ... } from "careerclaw-js"` for all
+  public types and functions
+- `src/tests/runtime.test.ts` — 4 integration tests covering the trust
+  boundary security matrix: standalone with Pro key (license validated via
+  Gumroad → LLM drafts active), standalone without Pro key (no license check →
+  template drafts only), ClawOS with `LLM_OUTREACH_DRAFT` feature (no Gumroad
+  call → LLM drafts active), ClawOS without feature (no Gumroad call → template
+  drafts only); mocks `checkLicense` and `enhanceDraft` to verify call isolation
+
+### Changed
+
+- `src/briefing.ts` — refactored from single `runBriefing()` entry point to
+  dual-mode architecture via internal strategy pattern; added
+  `runBriefingWithContext(profile, context, options)` as the trusted ClawOS
+  entry point; extracted `runBriefingInternal()` as the shared pipeline with
+  `InternalExecutionMode` discriminated union (`"standalone"` | `"clawos"`);
+  extracted `resolvePremiumDraftAccess(executionMode, resumeIntel)` to resolve
+  Pro activation per mode — standalone validates via `checkLicense()`, ClawOS
+  checks `tier === "pro"` + `hasCareerClawFeature(LLM_OUTREACH_DRAFT)`;
+  fixed unsafe `resumeIntel!` non-null assertion to safe `isProActive && resumeIntel`
+  guard; added `ContextBriefingOptions` interface (excludes `proKey`,
+  `licenseFetchFn`, `licenseCachePath` — not applicable in trusted mode);
+  removed inline JSDoc comments from `BriefingOptions` fields (types are
+  self-documenting)
+- `src/cli.ts` — added `--version` / `-v` flag using `createRequire` to read
+  version from `package.json`; version check exits before any profile or config
+  loading; updated `printHelp()` to document the new flag; replaced direct
+  `runBriefing()` call with `runCareerClawStandalone()` from `runtime.ts`,
+  delegating resume-intel construction and option wiring to the runtime layer
+- `package.json` — description updated to reflect dual-runtime identity
+  (ClawOS + standalone); `"clawos"` keyword added; `exports` map added with
+  three subpath entries: `"."` (main library, `dist/index.js`), `"./cli"`
+  (CLI entry, `dist/cli.js`), `"./package.json"` (self-reference for
+  `createRequire` version reads)
+- `README.md` — full rewrite aligned with dual execution-context architecture;
+  added [ClawOS](https://clawoshq.com/) links throughout; added
+  [ClawHub](https://clawhub.ai/) and [OpenClaw](https://openclaw.org/)
+  references for standalone skill distribution; split Pro pricing into two
+  channels (ClawOS $9/month recommended, Standalone $39 lifetime via Gumroad);
+  added programmatic integration examples for both `runCareerClawWithContext()`
+  (with `createClawOsExecutionContext()`) and `runCareerClawStandalone()`;
+  added `--version` flag to CLI options; updated project structure tree with
+  `execution-context.ts`, `index.ts`, and `runtime.ts`
+
+### Security
+
+- ClawOS execution path never touches Gumroad — entitlement is resolved
+  upstream by the platform; the `ClawOsExecutionContext.verified: true`
+  literal type enforces that only pre-verified contexts are accepted
+- Standalone execution path always validates through `checkLicense()` when a
+  `proKey` is provided — no bypass flag exists on the public CLI
+- `resumeIntel!` non-null assertion removed from the draft enhancement call;
+  replaced with an explicit `isProActive && resumeIntel` guard to prevent
+  runtime errors if `resumeIntel` is undefined
+
+### Notes
+
+274 tests across 17 files, all passing. `tsc --noEmit` clean.
+No new production dependencies. The `exports` map in `package.json` makes
+the package a proper ESM citizen with subpath resolution for ClawOS
+direct-import consumption.
+
+---
+
 ## [1.0.6] - 2026-03-19
 
 ### Fixed

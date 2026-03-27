@@ -1,23 +1,14 @@
 /**
  * briefing.ts — Daily briefing pipeline orchestrator.
  *
- * `runBriefing()` is the single entry point that wires every module
+ * `runBriefing()` is the standalone entry point that wires every module
  * into the complete end-to-end workflow:
  *
  *   fetch → deduplicate → rank → draft → persist → return bundle
  *
- * Design principles (from Phase 4 architecture doc):
- *   - Skill-first: accepts UserProfile as a parameter, not a file path.
- *     The caller (CLI or OpenClaw agent) is responsible for loading the
- *     profile; the orchestrator never touches the filesystem for input.
- *   - Dual-mode output: structured BriefingResult JSON for agents +
- *     per-stage timings for observability.
- *   - Dry-run: suppresses all writes; counts are still accurate.
- *   - Testable: fetchFn and repo are injectable; no live network calls
- *     required in tests.
- *   - Graceful degradation: if the fetch stage returns zero jobs (e.g.
- *     both adapters failed), the pipeline short-circuits cleanly with
- *     an empty result rather than crashing.
+ * `runBriefingWithContext()` is the trusted platform entry point used by
+ * ClawOS after upstream entitlement verification. It enables premium
+ * behavior from an in-memory execution context rather than a public CLI flag.
  */
 
 import { randomUUID } from "crypto";
@@ -37,72 +28,83 @@ import { enhanceDraft, type EnhanceOptions } from "./llm-enhance.js";
 import { checkLicense, type CheckLicenseOptions } from "./license.js";
 import { TrackingRepository } from "./tracking.js";
 import { DEFAULT_TOP_K } from "./config.js";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import {
+  CAREERCLAW_FEATURES,
+  hasCareerClawFeature,
+  type ClawOsExecutionContext,
+} from "./execution-context.js";
 
 export interface BriefingOptions {
-  /** Number of top matches to return (default: DEFAULT_TOP_K = 3). */
   topK?: number;
-  /** Suppress all file writes when true. Counts remain accurate. */
   dryRun?: boolean;
-  /**
-   * Injectable fetch function — defaults to the real fetchAllJobs().
-   * Pass a stub in tests to avoid live network calls.
-   */
   fetchFn?: () => Promise<FetchResult>;
-  /**
-   * Injectable TrackingRepository — defaults to a new instance with
-   * standard paths. Pass a tmpdir-backed instance in tests.
-   */
   repo?: TrackingRepository;
-  /**
-   * Resume intelligence from buildResumeIntelligence().
-   * Required for LLM draft enhancement — ignored when proKey is absent.
-   */
   resumeIntel?: ResumeIntelligence;
-  /**
-   * CareerClaw Pro license key (CAREERCLAW_PRO_KEY).
-   * Validated against Gumroad before enabling LLM-enhanced drafts.
-   * Falls back to deterministic draft if validation fails.
-   */
   proKey?: string;
-  /**
-   * Injectable fetch for the LLM API calls — passed through to enhanceDraft().
-   * Defaults to global fetch. Pass a stub in tests.
-   */
   enhanceFetchFn?: EnhanceOptions["fetchFn"];
-  /**
-   * Injectable fetch for the Gumroad license API call.
-   * Defaults to global fetch. Pass a stub in tests.
-   */
   licenseFetchFn?: CheckLicenseOptions["fetchFn"];
-  /**
-   * Override the license cache file path — for tests using a tmpdir.
-   */
   licenseCachePath?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
+export interface ContextBriefingOptions {
+  topK?: number;
+  dryRun?: boolean;
+  fetchFn?: () => Promise<FetchResult>;
+  repo?: TrackingRepository;
+  resumeIntel?: ResumeIntelligence;
+  enhanceFetchFn?: EnhanceOptions["fetchFn"];
+}
 
-/**
- * Run a full briefing pipeline for the given user profile.
- *
- * Stages and timings:
- *   1. fetch_ms  — fetch + deduplicate jobs from all sources
- *   2. rank_ms   — score and rank jobs against profile
- *   3. draft_ms  — generate one OutreachDraft per top match
- *   4. persist_ms — upsert tracking entries + append run record
- *
- * @param profile - User profile (passed in by caller, not loaded here)
- * @param options - Injection points and run flags
- */
+type InternalExecutionMode =
+  | {
+      kind: "standalone";
+      proKey?: string;
+      licenseFetchFn?: CheckLicenseOptions["fetchFn"];
+      licenseCachePath?: string;
+    }
+  | {
+      kind: "clawos";
+      context: ClawOsExecutionContext;
+    };
+
 export async function runBriefing(
   profile: UserProfile,
   options: BriefingOptions = {}
+): Promise<BriefingResult> {
+  return runBriefingInternal(profile, options, {
+    kind: "standalone",
+    ...(options.proKey !== undefined ? { proKey: options.proKey } : {}),
+    ...(options.licenseFetchFn !== undefined
+      ? { licenseFetchFn: options.licenseFetchFn }
+      : {}),
+    ...(options.licenseCachePath !== undefined
+      ? { licenseCachePath: options.licenseCachePath }
+      : {}),
+  });
+}
+
+export async function runBriefingWithContext(
+  profile: UserProfile,
+  context: ClawOsExecutionContext,
+  options: ContextBriefingOptions = {}
+): Promise<BriefingResult> {
+  return runBriefingInternal(profile, options, {
+    kind: "clawos",
+    context,
+  });
+}
+
+async function runBriefingInternal(
+  profile: UserProfile,
+  options: {
+    topK?: number;
+    dryRun?: boolean;
+    fetchFn?: () => Promise<FetchResult>;
+    repo?: TrackingRepository;
+    resumeIntel?: ResumeIntelligence;
+    enhanceFetchFn?: EnhanceOptions["fetchFn"];
+  },
+  executionMode: InternalExecutionMode
 ): Promise<BriefingResult> {
   const {
     topK = DEFAULT_TOP_K,
@@ -110,62 +112,39 @@ export async function runBriefing(
     fetchFn = fetchAllJobs,
     repo = new TrackingRepository({ dryRun }),
     resumeIntel,
-    proKey,
     enhanceFetchFn,
-    licenseFetchFn,
-    licenseCachePath,
   } = options;
 
-  // Validate Pro license before enabling LLM enhancement.
-  // Runs only when proKey is present; result degrades gracefully on network
-  // failure (cached result used for up to LICENSE_CACHE_TTL_MS = 7 days).
-  let isProActive = false;
-  if (proKey && proKey.trim().length > 0 && resumeIntel) {
-    const licenseOptions: import("./license.js").CheckLicenseOptions = {};
-    if (licenseFetchFn !== undefined) licenseOptions.fetchFn = licenseFetchFn;
-    if (licenseCachePath !== undefined) licenseOptions.cachePath = licenseCachePath;
-    const licenseResult = await checkLicense(proKey, licenseOptions);
-    isProActive = licenseResult.valid;
-  }
+  const isProActive = await resolvePremiumDraftAccess(executionMode, resumeIntel);
 
   const runAt = new Date().toISOString();
   const runId = randomUUID();
   const version = readPackageVersion();
 
-  // -------------------------------------------------------------------------
-  // Stage 1: Fetch + deduplicate
-  // -------------------------------------------------------------------------
   const fetchStart = Date.now();
   let fetchResult: FetchResult;
   try {
     fetchResult = await fetchFn();
   } catch {
-    // Catastrophic fetch failure — return an empty result rather than throwing
     fetchResult = { jobs: [], counts: {}, errors: {} };
   }
   const fetchMs = Date.now() - fetchStart;
 
   const { jobs, counts: sourceCounts } = fetchResult;
 
-  // -------------------------------------------------------------------------
-  // Stage 2: Rank
-  // -------------------------------------------------------------------------
   const rankStart = Date.now();
   const matches: ScoredJob[] = jobs.length > 0 ? rankJobs(jobs, profile, topK) : [];
   const rankMs = Date.now() - rankStart;
 
-  // -------------------------------------------------------------------------
-  // Stage 3: Draft
-  // -------------------------------------------------------------------------
   const draftStart = Date.now();
   const drafts: OutreachDraft[] = await Promise.all(
     matches.map(async (scored) => {
       const baseline = draftOutreach(scored.job, profile, scored.matched_keywords);
-      if (isProActive) {
+      if (isProActive && resumeIntel) {
         return enhanceDraft(
           scored.job,
           profile,
-          resumeIntel!,
+          resumeIntel,
           baseline,
           scored.gap_keywords,
           enhanceFetchFn !== undefined ? { fetchFn: enhanceFetchFn } : {}
@@ -176,9 +155,6 @@ export async function runBriefing(
   );
   const draftMs = Date.now() - draftStart;
 
-  // -------------------------------------------------------------------------
-  // Stage 4: Persist
-  // -------------------------------------------------------------------------
   const persistStart = Date.now();
   const trackingResult = repo.upsertEntries(
     matches.map((s) => s.job),
@@ -197,22 +173,15 @@ export async function runBriefing(
       fetch_ms: fetchMs,
       rank_ms: rankMs,
       draft_ms: draftMs,
-      persist_ms: null, // filled below after appendRun
+      persist_ms: null,
     },
     version,
   };
 
   repo.appendRun(run);
   const persistMs = Date.now() - persistStart;
-
-  // Back-fill persist_ms (the field exists for observability; the run
-  // record on disk will have null for persist_ms — that is acceptable
-  // and consistent with the Python implementation)
   run.timings.persist_ms = persistMs;
 
-  // -------------------------------------------------------------------------
-  // Result bundle
-  // -------------------------------------------------------------------------
   return {
     run,
     matches,
@@ -225,16 +194,45 @@ export async function runBriefing(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+async function resolvePremiumDraftAccess(
+  executionMode: InternalExecutionMode,
+  resumeIntel?: ResumeIntelligence
+): Promise<boolean> {
+  if (!resumeIntel) {
+    return false;
+  }
 
-/** Read the package version from package.json at runtime. */
+  if (executionMode.kind === "clawos") {
+    return (
+      executionMode.context.tier === "pro" &&
+      hasCareerClawFeature(
+        executionMode.context,
+        CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT
+      )
+    );
+  }
+
+  const proKey = executionMode.proKey?.trim();
+  if (!proKey) {
+    return false;
+  }
+
+  const licenseOptions: CheckLicenseOptions = {};
+  if (executionMode.licenseFetchFn !== undefined) {
+    licenseOptions.fetchFn = executionMode.licenseFetchFn;
+  }
+  if (executionMode.licenseCachePath !== undefined) {
+    licenseOptions.cachePath = executionMode.licenseCachePath;
+  }
+
+  const licenseResult = await checkLicense(proKey, licenseOptions);
+  return licenseResult.valid;
+}
+
 function readPackageVersion(): string {
   try {
     const require = createRequire(import.meta.url);
-    // Walk up from src/ to find package.json
-    const pkg = require("../package.json") as { version: string };
+    const pkg = require("./package.json") as { version: string };
     return pkg.version;
   } catch {
     return "unknown";

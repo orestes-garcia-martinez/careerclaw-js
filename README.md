@@ -4,19 +4,19 @@
 
 [![CI](https://github.com/orestes-garcia-martinez/careerclaw-js/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/orestes-garcia-martinez/careerclaw-js/actions/workflows/ci.yml)
 
-**Privacy-first job search automation for OpenClaw — Node.js / TypeScript.**
+**Privacy-first job search automation for [ClawOS](https://clawoshq.com/) — with a standalone Node.js runtime for local/manual workflows.**
 
-CareerClaw turns your AI agent into a structured daily workflow:
+CareerClaw turns your job-search workflow into a structured daily system:
 fetch listings → rank matches → draft outreach → track applications.
 
+- **Recommended runtime:** [ClawOS](https://clawoshq.com/) handles setup, entitlement, and trusted execution for you
+- **Standalone supported:** the Node.js CLI works for local/manual workflows, testing, and as a skill on any agentic platform (e.g. [OpenClaw](https://openclaw.org/)). Install from [ClawHub](https://clawhub.ai/)
 - **Local-first:** your resume and results stay on your machine
-- **No subscription:** one-time purchase for Pro
 - **Bring your own LLM API key (optional):** use OpenAI or Anthropic to enhance drafts
-- **Works everywhere:** Node.js is natively available in every OpenClaw deployment
 
-> **Why a Node.js rewrite?** The OpenClaw gateway ships Node.js v22 and npm natively,
-> but has no Python package manager — making the original Python package's self-healing
-> installation impossible in Docker-based deployments. careerclaw-js resolves this permanently.
+> **Why a Node.js rewrite?** It gives CareerClaw a clean direct-import runtime for ClawOS and
+> a friction-light standalone CLI for manual workflows. The same engine can now run inside the
+> platform shell or as a local package without a public Pro bypass flag.
 
 ---
 
@@ -33,7 +33,20 @@ One command. Everything is local.
 
 ## Quickstart
 
-### 1. Install
+### 1. Use CareerClaw inside ClawOS (recommended)
+
+This is the recommended path. [ClawOS](https://clawoshq.com/) handles the full user experience:
+
+- account + billing
+- skill installation and setup
+- trusted Pro activation upstream
+- direct-import execution inside the platform worker
+
+When CareerClaw runs inside ClawOS, users should buy and activate Pro through ClawOS — not by entering a standalone license key into the skill runtime.
+
+### 2. Optional: install the standalone CLI
+
+The standalone package can be installed directly from npm, or downloaded as a skill from [ClawHub](https://clawhub.ai/) for use on any agentic platform (e.g. [OpenClaw](https://openclaw.org/)).
 
 ```bash
 npm install -g careerclaw-js
@@ -45,21 +58,15 @@ Verify:
 careerclaw-js --version
 ```
 
-### 2. Set up via OpenClaw (recommended)
-
-If you are running CareerClaw through OpenClaw/ClawHub, the agent guides you through
-setup automatically. Upload your resume and it will extract your profile, ask two questions
-(work mode + salary floor), and run your first briefing.
-
 ### 3. Set up manually
-
 Create the runtime directory and profile:
 
 ```bash
 mkdir -p ~/.careerclaw
+careerclaw-js profile init
 ```
 
-Create `~/.careerclaw/profile.json`:
+Create : `~/.careerclaw/profile.json`
 
 ```json
 {
@@ -73,7 +80,7 @@ Create `~/.careerclaw/profile.json`:
 }
 ```
 
-### 4. Run your first briefing
+### 4. Run your first standalone briefing
 
 ```bash
 # Dry run first — no files written, safe to preview
@@ -89,11 +96,8 @@ careerclaw-js --resume-txt ~/.careerclaw/resume.txt
 careerclaw-js --resume-txt ~/.careerclaw/resume.txt --json
 ```
 
----
+Sample Output
 
-## Sample Output
-
-```
 === CareerClaw Daily Briefing ===
 Fetched jobs: 289 | Sources: remoteok: 98 | hackernews: 191
 Duration: 1887ms fetch + 24ms rank
@@ -106,136 +110,174 @@ Top Matches:
    gaps:    elixir, postgresql, emr
    location: REMOTE (US)
    url: https://news.ycombinator.com/item?id=47233919
-```
 
----
 
 ## Free vs Pro
 
-| Feature | Free | Pro ($39 lifetime) |
-|---|---|---|
-| Daily briefing | ✅ | ✅ |
-| Top 3 ranked matches | ✅ | ✅ |
-| Application tracking | ✅ | ✅ |
-| Outreach email draft (template) | ✅ | ✅ |
-| LLM-enhanced outreach email | — | ✅ |
-| Resume gap analysis | — | ✅ |
-| Cover letter (tailored, <300 words) | — | ✅ coming soon |
+CareerClaw has two ways to unlock Pro features depending on how you run it:
 
-**Pro tier: $39 one-time (lifetime license).**
+| Feature                             | Free | Pro           |
+|-------------------------------------|------|---------------|
+| Daily briefing                      | ✅    | ✅             |
+| Top 3 ranked matches                | ✅    | ✅             |
+| Application tracking                | ✅    | ✅             |
+| Outreach email draft (template)     | ✅    | ✅             |
+| LLM-enhanced outreach email         | —    | ✅             |
+| Resume gap analysis                 | —    | ✅             |
+| Cover letter (tailored, <300 words) | —    | ✅ coming soon |
 
-Purchase: https://ogm.gumroad.com/l/careerclaw-pro
+### Pro pricing
 
----
+| Channel                  | Price                               | Details                                                                                                                                     |
+|--------------------------|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| **ClawOS (recommended)** | **$9/month**                        | Managed billing, trusted platform activation, no key management. Visit [clawoshq.com](https://clawoshq.com/)                                |
+| **Standalone**           | **$39 one-time (lifetime license)** | Gumroad key validated against API, cached locally. Purchase at [ogm.gumroad.com/l/careerclaw-pro](https://ogm.gumroad.com/l/careerclaw-pro) |
 
-## Pro: Activating
+Recommendation: If you're using ClawOS, purchase Pro through the platform — it handles entitlement, billing, and activation for you. 
+The standalone Gumroad license is intended for users running the CLI directly or integrating CareerClaw as a skill on other agentic platforms.
 
+### Pro: Activating
+#### ClawOS-managed users (recommended)
+Buy and activate Pro through ClawOS. The platform resolves the user's entitlement upstream and passes a verified execution context into CareerClaw.
+In ClawOS mode:
+- no standalone --pro flag is used
+- no raw Pro bypass is exposed through the public CLI
+- CareerClaw trusts the platform execution context only after ClawOS verification
+
+#### Standalone users
 Purchase a license key on Gumroad. The key is emailed immediately after payment.
-
-### Docker / self-hosted
-
-Add to your `.env`:
-
-```env
-CAREERCLAW_PRO_KEY=YOUR-KEY-HERE
-CAREERCLAW_OPENAI_KEY=sk-...
-```
-
-### OpenClaw managed users
-
-Tell your agent:
-
-> "Set my CAREERCLAW_PRO_KEY to YOUR-KEY-HERE"
-
-The key is validated against Gumroad on first use and cached locally as a SHA-256 hash.
+Add your standalone Pro key to .env or your process environment. 
+The key is validated against Gumroad on first use and cached locally as a SHA-256 hash. 
 Re-validation happens every 7 days (requires internet).
 
----
+### Docker / self-hosted
+Add to your .env:
 
-## Pro: LLM-Enhanced Drafts
+CAREERCLAW_PRO_KEY=YOUR-KEY-HERE
+CAREERCLAW_OPENAI_KEY=sk-...
 
-With a valid Pro license and an LLM API key, CareerClaw writes personalised outreach emails
-using your actual resume signals mapped to each job's specific requirements. Falls back to
-the deterministic template silently on any LLM failure.
+### Pro: LLM-Enhanced Drafts
 
+With a valid Pro license and an LLM API key, CareerClaw writes personalised outreach emails using your 
+actual resume signals mapped to each job's specific requirements. Falls back to the deterministic template
+silently on any LLM failure.
 Failover chain example (tries Anthropic first, falls back to OpenAI):
 
-```env
 CAREERCLAW_ANTHROPIC_KEY=sk-ant-...
 CAREERCLAW_OPENAI_KEY=sk-...
 CAREERCLAW_LLM_CHAIN=anthropic/claude-haiku-4-5-20251001,openai/gpt-4o-mini
-```
 
 Estimated cost per run: ~$0.003 at claude-haiku-4-5-20251001 pricing (3 drafts).
 
----
+### Programmatic Integration
 
-## All CLI Options
+CareerClaw exposes a direct-import runtime for both trusted platform adapters and standalone programmatic use.
 
+#### ClawOS (trusted platform context)
+Use createClawOsExecutionContext() to build a verified context after upstream entitlement checks. 
+CareerClaw trusts this context and skips standalone license validation entirely.
+
+```ts
+import {
+  runCareerClawWithContext,
+  createClawOsExecutionContext,
+  CAREERCLAW_FEATURES,
+} from "careerclaw-js";
+
+const context = createClawOsExecutionContext({
+  tier: "pro",
+  features: [CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT],
+});
+
+const result = await runCareerClawWithContext(
+  {
+    profile,
+    resumeText,
+    topK: 5,
+    dryRun: false,
+  },
+  context
+);
 ```
+
+This API is intended for trusted platform code paths such as the ClawOS worker after assertion verification. 
+The public standalone CLI keeps its own standalone license flow.
+
+### Standalone (programmatic)
+
+Use runCareerClawStandalone() for local scripts, CI pipelines, or as a skill inside other agentic platforms (e.g. OpenClaw).
+License validation runs against Gumroad when a proKey is provided.
+
+```ts
+import { runCareerClawStandalone } from "careerclaw-js";
+
+const result = await runCareerClawStandalone(
+  {
+    profile,
+    resumeText,
+    topK: 3,
+    dryRun: true,
+  },
+  { proKey: process.env.CAREERCLAW_PRO_KEY }
+);
+```
+
+### All CLI Options
+
 careerclaw-js [OPTIONS]
 
 Options:
-  -p, --profile PATH     Path to profile.json
-                         (default: .careerclaw/profile.json)
-      --resume-txt PATH  Plain-text resume for enhanced matching
-                         (default: .careerclaw/resume.txt if present)
-  -k, --top-k INT        Number of top matches to return (default: 3)
-  -d, --dry-run          Run without writing tracking or run log
-  -j, --json             Machine-readable JSON output (no colour, no headers)
-  -h, --help             Show this help message
-```
+-p, --profile PATH     Path to profile.json
+                       (default: .careerclaw/profile.json)
+     --resume-txt PATH Plain-text resume for enhanced matching
+                       (default: .careerclaw/resume.txt if present)
+-k, --top-k INT        Number of top matches to return (default: 3)
+-d, --dry-run          Run without writing tracking or run log
+-j, --json             Machine-readable JSON output (no colour, no headers)
+-v, --version          Show version number
+-h, --help             Show this help message
 
----
-
-## Application Tracking
+### Application Tracking
 
 Tracking is written automatically on each non-dry-run. Status lifecycle:
+saved → applied → interviewing → offer → rejected
+Runtime files — all stored under .careerclaw/:
 
-`saved` → `applied` → `interviewing` → `offer` → `rejected`
-
-Runtime files — all stored under `.careerclaw/`:
-
-| File | Contents |
-|---|---|
-| `profile.json` | Career profile |
-| `resume.txt` | Plain-text resume (optional) |
-| `tracking.json` | Saved jobs keyed by stable `job_id` |
-| `runs.jsonl` | Append-only run log (one line per run) |
+| File             | Contents                                         |
+|------------------|--------------------------------------------------|
+| `profile.json`   | Career profile                                   |
+| `resume.txt`     | Plain-text resume (optional)                     |
+| `tracking.json`  | Saved jobs keyed by stable `job_id`              |
+| `runs.jsonl`     | Append-only run log (one line per run)           |
 | `.license_cache` | Pro license validation cache (SHA-256 hash only) |
 
-> **File format compatibility:** careerclaw-js uses the same JSON formats as the Python
-> `careerclaw` package. `profile.json`, `tracking.json`, and `runs.jsonl` are fully
-> interchangeable between both implementations.
+File format compatibility: careerclaw-js uses the same JSON formats as the Python careerclaw package. 
+profile.json, tracking.json, and runs.jsonl are fully interchangeable between both implementations. 
 
----
+### Environment Variables
 
-## Environment Variables
+| Variable                   | Description                                                                           |
+|----------------------------|---------------------------------------------------------------------------------------|
+| `CAREERCLAW_PRO_KEY`       | Pro license key (Gumroad)                                                             |
+| `CAREERCLAW_ANTHROPIC_KEY` | Anthropic API key for LLM draft enhancement                                           |
+| `CAREERCLAW_OPENAI_KEY`    | OpenAI API key for LLM draft enhancement                                              |
+| `CAREERCLAW_LLM_KEY`       | Legacy single-provider key fallback                                                   |
+| `CAREERCLAW_LLM_CHAIN`     | Ordered failover chain, e.g. `anthropic/claude-haiku-4-5-20251001,openai/gpt-4o-mini` |
+| `CAREERCLAW_LLM_MODEL`     | Override default LLM model                                                            |
+| `CAREERCLAW_LLM_PROVIDER`  | `anthropic` or `openai` (inferred from key when not set)                              |
+| `CAREERCLAW_DIR`           | Override runtime directory (default: `.careerclaw`)                                   |
+| `HN_WHO_IS_HIRING_ID`      | Override HN thread ID (updated monthly)                                               |
 
-| Variable | Description |
-|---|---|
-| `CAREERCLAW_PRO_KEY` | Pro license key (Gumroad) |
-| `CAREERCLAW_ANTHROPIC_KEY` | Anthropic API key for LLM draft enhancement |
-| `CAREERCLAW_OPENAI_KEY` | OpenAI API key for LLM draft enhancement |
-| `CAREERCLAW_LLM_KEY` | Legacy single-provider key fallback |
-| `CAREERCLAW_LLM_CHAIN` | Ordered failover chain, e.g. `anthropic/claude-haiku-4-5-20251001,openai/gpt-4o-mini` |
-| `CAREERCLAW_LLM_MODEL` | Override default LLM model |
-| `CAREERCLAW_LLM_PROVIDER` | `anthropic` or `openai` (inferred from key when not set) |
-| `CAREERCLAW_DIR` | Override runtime directory (default: `.careerclaw`) |
-| `HN_WHO_IS_HIRING_ID` | Override HN thread ID (updated monthly) |
+Copy .env.example to .env and fill in your values.
 
-Copy `.env.example` to `.env` and fill in your values.
+### Development
 
----
-
-## Development
-
-### Prerequisites
+#### Prerequisites
 
 - Node.js ≥ 20
 - npm ≥ 10
 
-### Setup
+#### Setup
 
 ```bash
 git clone https://github.com/orestes-garcia-martinez/careerclaw-js
@@ -243,7 +285,7 @@ cd careerclaw-js
 npm install
 ```
 
-### Running tests
+#### Running Tests
 
 ```bash
 # All tests (offline, no network)
@@ -256,7 +298,7 @@ npm run test:watch
 npm run lint
 ```
 
-### Smoke tests (live network — run before release)
+#### ### Smoke tests (live network — run before release)
 
 ```bash
 npm run smoke:sources    # RemoteOK + HN connectivity
@@ -264,8 +306,7 @@ npm run smoke:briefing   # Full pipeline end-to-end
 npm run smoke:llm        # LLM keys + Pro license validation
 ```
 
-### Project structure
-
+### Project Structure
 ```
 careerclaw-js/
 ├── src/
@@ -273,58 +314,53 @@ careerclaw-js/
 │   ├── core/           # Shared text processing
 │   ├── matching/       # Scoring engine
 │   ├── tests/          # Vitest test suite (270 tests, fully offline)
-│   ├── briefing.ts     # Pipeline orchestrator
+│   ├── briefing.ts     # Pipeline orchestrator (standalone + ClawOS entry points)
 │   ├── cli.ts          # CLI entry point
 │   ├── config.ts       # Environment and source configuration
 │   ├── drafting.ts     # Deterministic draft templates (Free tier)
+│   ├── execution-context.ts  # Execution context types + feature flags
 │   ├── gap.ts          # Gap analysis engine
+│   ├── index.ts        # Public API barrel export
 │   ├── license.ts      # Pro license validation (Gumroad)
 │   ├── llm-enhance.ts  # LLM draft enhancement (Pro)
 │   ├── models.ts       # Canonical data schemas
 │   ├── requirements.ts # Job requirements extraction
 │   ├── resume-intel.ts # Resume intelligence
+│   ├── runtime.ts      # Programmatic runtime wrappers (standalone + ClawOS)
 │   ├── sources.ts      # Source aggregation
 │   └── tracking.ts     # Tracking repository
 ├── scripts/            # Smoke + debug scripts (not published)
-├── SKILL.md            # OpenClaw skill definition
+├── SKILL.md            # Agent-skill definition (standalone / legacy agent runtime)
 ├── CHANGELOG.md
 ├── SECURITY.md
 ├── package.json
 └── tsconfig.json
 ```
 
----
 
-## Security & Privacy
+### Security & Privacy
 
 careerclaw-js is built on a local-first architecture.
+- No backend. No telemetry. No analytics endpoint.
+- API keys never stored. Keys are read from the environment at runtime only.
+- License cache is hash-only. Only SHA-256 of the license key is written to disk.
+- LLM privacy. Only extracted keyword signals sent to the LLM — never raw resume text.
+- External calls: remoteok.com, hacker-news.firebaseio.com, api.gumroad.com, and your configured LLM provider (using your own key).
 
-- **No backend.** No telemetry. No analytics endpoint.
-- **API keys never stored.** Keys are read from the environment at runtime only.
-- **License cache is hash-only.** Only SHA-256 of the license key is written to disk.
-- **LLM privacy.** Only extracted keyword signals sent to the LLM — never raw resume text.
-- **External calls:** `remoteok.com`, `hacker-news.firebaseio.com`, `api.gumroad.com`,
-  and your configured LLM provider (using your own key).
+See SECURITY.md for the vulnerability disclosure policy.
 
-See [SECURITY.md](SECURITY.md) for the vulnerability disclosure policy.
+### Changelog
 
----
+See CHANGELOG.md for the release notes.
 
-## Changelog
+### License
+careerclaw-js is licensed under the MIT License. See LICENSE.md for details.
 
-See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+### Support
 
----
+- GitHub Issues: bug reports and feature requests
+- Response SLA: critical bugs < 48h · general questions < 72h
+- Security disclosures: see SECURITY.md
+- Pro support: orestes.garcia.martinez@gmail.com
 
-## License
 
-MIT — see [LICENSE](LICENSE)
-
----
-
-## Support
-
-- **GitHub Issues:** bug reports and feature requests
-- **Response SLA:** critical bugs < 48h · general questions < 72h
-- **Security disclosures:** see [SECURITY.md](SECURITY.md)
-- **Pro support:** orestes.garcia.martinez@gmail.com
