@@ -6,6 +6,35 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.1.0...careerclaw-js-v1.2.0) (2026-03-27)
+
+
+### Features
+
+* dual execution-context architecture for CareerClaw runtimes ([2d77418](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/2d77418a111a69fb57d51b65a4a31c9a3052680d))
+
+
+### Bug Fixes
+
+* bump fast-xml-parser version to fix CVE-2026-26278 ([5b6d197](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/5b6d1978a450b0be11b92bb44ad4465802e12cfb))
+* bump fast-xml-parser version to fix CVE-2026-33349 ([80fbb08](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/80fbb0824cc9199074bef9421fcf2cdc9b9c1b21))
+* grant contents:write permission to vt_scan job ([35a6a7f](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/35a6a7fdb7214904c238d6509e2e1aaf679fe4be))
+* grant contents:write permission to vt_scan job ([282e425](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/282e425a7bf4e18901e668478c09489b0d191bf0))
+* scoring model, signal gate, entity decoding, credentials infrastructure ([246dbf3](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/246dbf3f017e992f28e2ee75a3d0d07456791efd))
+* scoring model, signal gate, entity decoding, credentials infrastructure ([9a9c6a3](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/9a9c6a3e4c38d3968423965ba0cf3a6c4ba9e67a))
+* **skill:** rewrite SKILL.md as runbook to prevent hallucination and enforce profile gate ([975ae12](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/975ae12e3e3c08b6e4a8e6f13c19067ab79aa753))
+
+
+### Build System
+
+* add Release Please automation and commitlint enforcement ([e835723](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/e835723f8571a03105e786d597dde0148581005b))
+* add Release Please automation and commitlint enforcement ([c15410d](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/c15410d4302ff21593f437a4360d1851a4d49e12))
+
+
+### Documentation
+
+* improve Ship Changes Workflow section in CLAUDE.md ([6ce1af7](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/6ce1af7bdc69c29053b4a1478f4a05a83f5a25f7))
+
 ## [Unreleased]
 
 ---
