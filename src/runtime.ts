@@ -19,6 +19,10 @@ export interface CareerClawRunInput {
   resumeText?: string | null;
   topK?: number;
   dryRun?: boolean;
+  /** 0-based indices into the matches array to generate cover letters for. */
+  coverLetterMatchIndices?: number[];
+  /** 0-based indices into the matches array to run gap analysis for. */
+  gapAnalysisMatchIndices?: number[];
 }
 
 export interface CareerClawRunSupportOptions {
@@ -61,6 +65,12 @@ export async function runCareerClawStandalone(
     ...(options.licenseCachePath !== undefined
       ? { licenseCachePath: options.licenseCachePath }
       : {}),
+    ...(input.coverLetterMatchIndices !== undefined
+      ? { coverLetterMatchIndices: input.coverLetterMatchIndices }
+      : {}),
+    ...(input.gapAnalysisMatchIndices !== undefined
+      ? { gapAnalysisMatchIndices: input.gapAnalysisMatchIndices }
+      : {}),
   });
 }
 
@@ -83,6 +93,12 @@ export async function runCareerClawWithContext(
     resumeIntel,
     ...(options.enhanceFetchFn !== undefined
       ? { enhanceFetchFn: options.enhanceFetchFn }
+      : {}),
+    ...(input.coverLetterMatchIndices !== undefined
+      ? { coverLetterMatchIndices: input.coverLetterMatchIndices }
+      : {}),
+    ...(input.gapAnalysisMatchIndices !== undefined
+      ? { gapAnalysisMatchIndices: input.gapAnalysisMatchIndices }
       : {}),
   });
 }

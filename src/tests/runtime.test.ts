@@ -3,9 +3,14 @@ import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
-const { mockCheckLicense, mockEnhanceDraft } = vi.hoisted(() => ({
+const { mockCheckLicense, mockEnhanceDraft, mockGenerateCoverLetter, mockGapAnalysis, gapAnalysisRef } = vi.hoisted(() => ({
   mockCheckLicense: vi.fn(),
   mockEnhanceDraft: vi.fn(),
+  mockGenerateCoverLetter: vi.fn(),
+  mockGapAnalysis: vi.fn(),
+  // Mutable container so the vi.mock factory can store the actual implementation
+  // without hitting the TDZ — vi.hoisted objects are available before mock factories run.
+  gapAnalysisRef: { fn: null as null | typeof import("../gap.js").gapAnalysis },
 }));
 
 vi.mock("../license.js", async () => {
@@ -15,7 +20,14 @@ vi.mock("../license.js", async () => {
 
 vi.mock("../llm-enhance.js", async () => {
   const actual = await vi.importActual<typeof import("../llm-enhance.js")>("../llm-enhance.js");
-  return { ...actual, enhanceDraft: mockEnhanceDraft };
+  return { ...actual, enhanceDraft: mockEnhanceDraft, generateCoverLetter: mockGenerateCoverLetter };
+});
+
+vi.mock("../gap.js", async () => {
+  const actual = await vi.importActual<typeof import("../gap.js")>("../gap.js");
+  gapAnalysisRef.fn = actual.gapAnalysis;
+  mockGapAnalysis.mockImplementation(actual.gapAnalysis);
+  return { ...actual, gapAnalysis: mockGapAnalysis };
 });
 
 import { CAREERCLAW_FEATURES, createClawOsExecutionContext } from "../execution-context.js";
@@ -85,8 +97,12 @@ function makeEnhancedDraft(overrides: Partial<OutreachDraft> = {}): OutreachDraf
 beforeEach(() => {
   mockCheckLicense.mockReset();
   mockEnhanceDraft.mockReset();
+  mockGenerateCoverLetter.mockReset();
+  mockGapAnalysis.mockReset();
   mockCheckLicense.mockResolvedValue({ valid: true, source: "api" });
   mockEnhanceDraft.mockResolvedValue(makeEnhancedDraft());
+  mockGenerateCoverLetter.mockResolvedValue(null); // Default: LLM fails → template fallback
+  mockGapAnalysis.mockImplementation((...args) => gapAnalysisRef.fn!(...args)); // call through
 });
 
 describe("runCareerClawStandalone", () => {
@@ -307,5 +323,439 @@ describe("topK tier clamping — standalone", () => {
 
     expect(result.matches.length).toBeGreaterThan(3);
     expect(result.matches.length).toBeLessThanOrEqual(10);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cover letter generation — ClawOS context (index-based)
+// ---------------------------------------------------------------------------
+
+const MOCK_COVER_LETTER_BODY = "I am writing to apply for the Senior TypeScript Engineer position at Acme. My experience aligns well with your needs.";
+
+describe("cover letter — index-based selection", () => {
+  it("generates a cover letter for the requested match index (LLM success)", async () => {
+    mockGenerateCoverLetter.mockResolvedValue(MOCK_COVER_LETTER_BODY);
+
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [
+        CAREERCLAW_FEATURES.TAILORED_COVER_LETTER,
+        CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT,
+        CAREERCLAW_FEATURES.TOPK_EXTENDED,
+      ],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        coverLetterMatchIndices: [0],
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.cover_letters).toHaveLength(1);
+    expect(result.cover_letters[0]!.is_template).toBe(false);
+    expect(result.cover_letters[0]!.body).toBe(MOCK_COVER_LETTER_BODY);
+    expect(result.cover_letters[0]!.tone).toBe("professional");
+    expect(result.cover_letters[0]!.job_id).toBe(result.matches[0]!.job.job_id);
+    expect(typeof result.cover_letters[0]!.match_score).toBe("number");
+    expect(result.cover_letters[0]!.keyword_coverage).toHaveProperty("top_signals");
+    expect(result.cover_letters[0]!.keyword_coverage).toHaveProperty("top_gaps");
+  });
+
+  it("falls back to template cover letter when LLM fails", async () => {
+    mockGenerateCoverLetter.mockResolvedValue(null);
+
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [
+        CAREERCLAW_FEATURES.TAILORED_COVER_LETTER,
+        CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT,
+      ],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        coverLetterMatchIndices: [0],
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.cover_letters).toHaveLength(1);
+    expect(result.cover_letters[0]!.is_template).toBe(true);
+    expect(result.cover_letters[0]!.body).toContain("Sincerely,");
+    expect(result.cover_letters[0]!.body).toContain("[Your Name]");
+    expect(typeof result.cover_letters[0]!.match_score).toBe("number");
+  });
+
+  it("generates cover letters for multiple requested indices", async () => {
+    mockGenerateCoverLetter.mockResolvedValue(MOCK_COVER_LETTER_BODY);
+
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [
+        CAREERCLAW_FEATURES.TAILORED_COVER_LETTER,
+        CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT,
+        CAREERCLAW_FEATURES.TOPK_EXTENDED,
+      ],
+    });
+
+    const jobs = makeManyJobs(5);
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 5,
+        dryRun: true,
+        coverLetterMatchIndices: [0, 2],
+      },
+      context,
+      {
+        fetchFn: stubFetch(jobs),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.cover_letters).toHaveLength(2);
+    expect(result.cover_letters[0]!.job_id).toBe(result.matches[0]!.job.job_id);
+    expect(result.cover_letters[1]!.job_id).toBe(result.matches[2]!.job.job_id);
+  });
+
+  it("returns empty cover_letters when no indices are requested", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [
+        CAREERCLAW_FEATURES.TAILORED_COVER_LETTER,
+        CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT,
+      ],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        // No coverLetterMatchIndices — defaults to []
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.cover_letters).toHaveLength(0);
+    expect(mockGenerateCoverLetter).not.toHaveBeenCalled();
+  });
+
+  it("silently skips out-of-bounds indices", async () => {
+    mockGenerateCoverLetter.mockResolvedValue(MOCK_COVER_LETTER_BODY);
+
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [
+        CAREERCLAW_FEATURES.TAILORED_COVER_LETTER,
+        CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT,
+      ],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        coverLetterMatchIndices: [0, 5, 99],
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    // Only index 0 is valid — 5 and 99 are silently skipped
+    expect(result.cover_letters).toHaveLength(1);
+  });
+
+  it("returns empty cover_letters for free tier even with indices", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "free",
+      features: [],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        coverLetterMatchIndices: [0],
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.cover_letters).toHaveLength(0);
+    expect(mockGenerateCoverLetter).not.toHaveBeenCalled();
+  });
+
+  it("returns empty cover_letters when there are no matches", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [CAREERCLAW_FEATURES.TAILORED_COVER_LETTER],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        coverLetterMatchIndices: [0],
+      },
+      context,
+      {
+        fetchFn: stubFetch([]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.cover_letters).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Gap analysis — index-based selection
+// ---------------------------------------------------------------------------
+
+describe("gap analysis — index-based selection", () => {
+  it("generates a gap analysis report for the requested match index", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [CAREERCLAW_FEATURES.RESUME_GAP_ANALYSIS],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        gapAnalysisMatchIndices: [0],
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.gap_analyses).toHaveLength(1);
+    expect(result.gap_analyses[0]!.job_id).toBe(result.matches[0]!.job.job_id);
+    expect(result.gap_analyses[0]!.title).toBe(result.matches[0]!.job.title);
+    expect(result.gap_analyses[0]!.company).toBe(result.matches[0]!.job.company);
+    expect(typeof result.gap_analyses[0]!.analysis.fit_score).toBe("number");
+    expect(result.gap_analyses[0]!.analysis.summary).toHaveProperty("top_signals");
+    expect(result.gap_analyses[0]!.analysis.summary).toHaveProperty("top_gaps");
+  });
+
+  it("generates gap analyses for multiple requested indices", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [
+        CAREERCLAW_FEATURES.RESUME_GAP_ANALYSIS,
+        CAREERCLAW_FEATURES.TOPK_EXTENDED,
+      ],
+    });
+
+    const jobs = makeManyJobs(5);
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 5,
+        dryRun: true,
+        gapAnalysisMatchIndices: [0, 2, 4],
+      },
+      context,
+      {
+        fetchFn: stubFetch(jobs),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.gap_analyses).toHaveLength(3);
+    expect(result.gap_analyses[0]!.job_id).toBe(result.matches[0]!.job.job_id);
+    expect(result.gap_analyses[1]!.job_id).toBe(result.matches[2]!.job.job_id);
+    expect(result.gap_analyses[2]!.job_id).toBe(result.matches[4]!.job.job_id);
+  });
+
+  it("silently skips out-of-bounds indices", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [CAREERCLAW_FEATURES.RESUME_GAP_ANALYSIS],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        gapAnalysisMatchIndices: [0, 5, 99],
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.gap_analyses).toHaveLength(1);
+  });
+
+  it("returns empty gap_analyses when no indices are requested", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [CAREERCLAW_FEATURES.RESUME_GAP_ANALYSIS],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.gap_analyses).toHaveLength(0);
+  });
+
+  it("returns empty gap_analyses for free tier even with indices", async () => {
+    const context = createClawOsExecutionContext({
+      tier: "free",
+      features: [],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        gapAnalysisMatchIndices: [0],
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.gap_analyses).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Gap cache sharing — cover letter uses precomputed gap when both requested
+// ---------------------------------------------------------------------------
+
+describe("gap cache sharing", () => {
+  it("cover letter uses precomputed gap from gap analysis when same index requested", async () => {
+    mockGenerateCoverLetter.mockResolvedValue(null); // Force template fallback so we can inspect match_score
+
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [
+        CAREERCLAW_FEATURES.TAILORED_COVER_LETTER,
+        CAREERCLAW_FEATURES.RESUME_GAP_ANALYSIS,
+        CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT,
+      ],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        gapAnalysisMatchIndices: [0],
+        coverLetterMatchIndices: [0],
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.gap_analyses).toHaveLength(1);
+    expect(result.cover_letters).toHaveLength(1);
+
+    // Both should have the same fit score — proving the cover letter
+    // used the precomputed gap rather than running a separate analysis
+    expect(result.cover_letters[0]!.match_score).toBe(
+      result.gap_analyses[0]!.analysis.fit_score
+    );
+  });
+
+  it("gapAnalysis is called exactly once when same index appears in both lists", async () => {
+    // Baseline: cover letter alone calls gapAnalysis once (no cache, no pre-computation).
+    // With gap analysis pre-computation for the same index, the cover letter must
+    // consume the cached result — so the total should still be exactly one call.
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [
+        CAREERCLAW_FEATURES.TAILORED_COVER_LETTER,
+        CAREERCLAW_FEATURES.RESUME_GAP_ANALYSIS,
+        CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT,
+      ],
+    });
+
+    await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        gapAnalysisMatchIndices: [0],
+        coverLetterMatchIndices: [0],
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    // If gapCache were bypassed, generateCoverLetterForMatch would call
+    // gapAnalysis a second time internally → count would be 2.
+    expect(mockGapAnalysis).toHaveBeenCalledTimes(1);
   });
 });

@@ -25,6 +25,10 @@ npm run smoke:sources
 npm run smoke:briefing
 npm run smoke:llm      # requires .env with API keys
 
+# ClawOS integration smoke test (requires .env with API keys)
+# Runs 8 user actions × 30 assertions via runCareerClawWithContext()
+npx tsx --env-file=.env scripts/smoke_clawos.ts
+
 # Debug scripts (require .env)
 npm run debugging:license
 npm run debugging:pro
@@ -103,6 +107,89 @@ Strict mode with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and `
 
 `src/models.ts` schemas intentionally match the Python careerclaw implementation — profile, tracking, and run files are interchangeable between runtimes.
 
+## Manual Test Tasks
+
+These tasks are run manually when implementing new features to verify the full
+user-facing behaviour end-to-end. Always run `npm run build` before either task.
+
+---
+
+### Task 1 — CLI Test
+
+**Trigger command:** `run cli test`
+
+Run the full CLI variant matrix below. All runs use `--dry-run`.
+Free tier: `node dist/cli.js` (no env file — no Pro key in scope).
+Pro tier: `node --env-file=.env dist/cli.js`.
+
+Tests 10–14 require knowing match indices. Run test 7 first, observe how many
+matches are returned, then use index `1` (and `1,2` for multi-index variants).
+
+| # | Command | Tier | What to verify |
+|---|---------|------|----------------|
+| 1 | `node dist/cli.js --help` | — | All flags documented, including `-c`/`--cover-letter` and `-g`/`--gap-analysis` |
+| 2 | `node dist/cli.js --version` | — | Prints current package version |
+| 3 | `node dist/cli.js --dry-run` | Free | 3 matches, template drafts (`llm_enhanced: false`), `cover_letters: []`, `gap_analyses: []` |
+| 4 | `node dist/cli.js --resume-txt .careerclaw/resume.txt --dry-run` | Free | Explicit resume path works; same output as #3 |
+| 5 | `node dist/cli.js --top-k 5 --dry-run` | Free | Returns 3 matches — silently clamped from 5 (no `TOPK_EXTENDED`) |
+| 6 | `node dist/cli.js --dry-run --json` | Free | Valid JSON; `cover_letters` and `gap_analyses` are empty arrays |
+| 7 | `node --env-file=.env dist/cli.js --top-k 5 --dry-run` | Pro | 5 matches, all LLM-enhanced drafts (`llm_enhanced: true`) |
+| 8 | `node --env-file=.env dist/cli.js --resume-txt .careerclaw/resume.txt --dry-run` | Pro | Explicit resume path works; LLM drafts generated |
+| 9 | _(covered by #7)_ | Pro | — |
+| 10 | `node --env-file=.env dist/cli.js --top-k 5 --cover-letter 1 --dry-run` | Pro | `cover_letters.length === 1`, `is_template: false` |
+| 11 | `node --env-file=.env dist/cli.js --top-k 5 --gap-analysis 1 --dry-run` | Pro | Gap analysis section printed with weighted/unweighted scores, signals, gaps |
+| 12 | `node --env-file=.env dist/cli.js --top-k 5 --cover-letter 1 --gap-analysis 1 --dry-run` | Pro | Both sections rendered; `match_score` in cover letter equals `fit_score` in gap analysis (gapCache reuse) |
+| 13 | `node --env-file=.env dist/cli.js --top-k 5 --cover-letter 1,2 --gap-analysis 1,2 --dry-run --json` | Pro | `cover_letters.length === 2`, `gap_analyses.length === 2`; `is_template: false`; `match_score === fit_score` on both |
+| 14 | `node --env-file=.env dist/cli.js --top-k 5 --cover-letter 99 --dry-run` | Pro | Out-of-bounds index silently skipped — `cover_letters: []`, no crash, no error output |
+
+**Pass criteria:** All 14 variants exit 0. Results match the "What to verify" column.
+Report results in a table with columns: `#`, `Command`, `Result` (✅/❌), `Notes`.
+
+---
+
+### Task 2 — ClawOS User Test
+
+**Trigger command:** `run clawos user`
+
+Run the ClawOS integration smoke test script. This exercises `runCareerClawWithContext()`
+directly — no CLI involved. All runs use `dryRun: true`.
+
+```bash
+npx tsx --env-file=.env scripts/smoke_clawos.ts
+```
+
+The script runs 8 user actions (A–H) across 5 execution contexts and asserts
+30 behavioural invariants. It exits 0 on full pass, 1 on any assertion failure.
+
+**Contexts:**
+
+| Context | Tier | Features |
+|---------|------|----------|
+| `freeCtx` | free | `[]` |
+| `proBasicCtx` | pro | `LLM_OUTREACH_DRAFT`, `RESUME_GAP_ANALYSIS` |
+| `proFullCtx` | pro | All 4 features |
+| `proNoTopKCtx` | pro | All except `TOPK_EXTENDED` |
+| `proNoClCtx` | pro | All except `TAILORED_COVER_LETTER` |
+
+**User actions and expected outcomes:**
+
+| # | User says to ClawOS | Context | Key parameters | Expected |
+|---|---------------------|---------|----------------|----------|
+| A | "Run my daily briefing" | `freeCtx` | `topK=3` | 3 matches, template drafts, `cover_letters: []`, `gap_analyses: []`, `verified: true` on context |
+| B | "Run my daily briefing" | `proBasicCtx` | `topK=3` | 3 matches, LLM drafts; no `TAILORED_COVER_LETTER` or `TOPK_EXTENDED` |
+| C | "Show me my top 5 matches" | `proFullCtx` | `topK=5` | 5 matches, all LLM drafts — discovery run for indices D/E/F |
+| D | "Write a cover letter for match 1" | `proFullCtx` | `topK=5`, `coverLetterMatchIndices=[0]` | 1 LLM cover letter; `is_template: false`; `job_id` matches match #1 |
+| E | "Analyze my fit for my top 2 matches" | `proFullCtx` | `topK=5`, `gapAnalysisMatchIndices=[0,1]` | 2 gap reports; `job_id` linkage correct; signals/gaps populated |
+| F | "Write a cover letter and analyze fit for match 1" | `proFullCtx` | `topK=5`, both `[0]` | 1 cover letter + 1 gap report; `match_score === fit_score` (gapCache reuse) |
+| G | "Show me 5 matches" | `proNoTopKCtx` | `topK=5` | Silently clamped to 3; LLM drafts still served |
+| H | "Write a cover letter for match 1" | `proNoClCtx` | `topK=5`, `coverLetterMatchIndices=[0]` | `cover_letters: []`; 5 matches and LLM drafts unaffected |
+
+**Pass criteria:** Script exits 0. All 30 assertions print `✓`. Final line reads
+`✓ All ClawOS smoke test actions passed`.
+Report pass/fail per action with assertion counts (e.g. `A: 6/6 ✓`).
+
+---
+
 ## Ship Changes Workflow
 
 When asked to "ship changes", follow these steps in order:
@@ -156,12 +243,14 @@ git push -u origin <branch>
 ```
 
 Smoke tests require a populated `.env` with API keys. Skip `smoke:llm` if the change does
-not touch LLM, licensing, or Pro-gated paths.
+not touch LLM, licensing, or Pro-gated paths. Run `smoke_clawos` if the change touches
+cover letters, gap analysis, feature gating, or the ClawOS execution path.
 
 ```bash
 npm run smoke:sources
 npm run smoke:briefing
 npm run smoke:llm
+npx tsx --env-file=.env scripts/smoke_clawos.ts
 ```
 
 If smoke tests fail, **stop**. Explain what is failing and the approach to fix it — do not apply the fix code until I approve it.

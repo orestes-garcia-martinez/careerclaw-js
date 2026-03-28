@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { enhanceDraft } from "../llm-enhance.js";
+import { enhanceDraft, generateCoverLetter } from "../llm-enhance.js";
 import type { ChainCandidate } from "../llm-enhance.js";
 import type { NormalizedJob, UserProfile, OutreachDraft, ResumeIntelligence } from "../models.js";
 
@@ -323,5 +323,127 @@ describe("enhanceDraft — no keys configured", () => {
     expect(result.llm_enhanced).toBe(false);
     expect(result.job_id).toBe(draft.job_id);
     expect(noOpFetch).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cover letter generation — generateCoverLetter()
+// ---------------------------------------------------------------------------
+
+const VALID_COVER_LETTER_RESPONSE = `I am writing to apply for the Senior TypeScript Engineer position at Acme. Your team's focus on building reliable, scalable systems is exactly the kind of challenge I thrive on.
+
+Because I have spent the past decade building production TypeScript applications, I can contribute to your engineering velocity from day one. My experience with React and Node has given me deep insight into full-stack architecture decisions that balance developer experience with runtime performance.
+
+I am also drawn to the collaborative culture at Acme. My background in cross-functional delivery means I can bridge the gap between product requirements and technical implementation effectively.
+
+I would welcome the chance to discuss how my experience aligns with your team's goals.
+
+Sincerely,
+[Your Name]`;
+
+describe("generateCoverLetter — success path", () => {
+  it("returns a cover letter body string on success", async () => {
+    const result = await generateCoverLetter(
+      makeJob(),
+      makeProfile(),
+      makeResumeIntel(),
+      ["kubernetes", "graphql"],
+      { fetchFn: mockFetchSuccess(VALID_COVER_LETTER_RESPONSE), _chainOverride: ANTHROPIC_CHAIN }
+    );
+
+    expect(result).not.toBeNull();
+    expect(typeof result).toBe("string");
+    expect(result!).toContain("Acme");
+  });
+
+  it("strips word count annotations from LLM response", async () => {
+    const responseWithCount = VALID_COVER_LETTER_RESPONSE + "\n\n[287 words]";
+    const result = await generateCoverLetter(
+      makeJob(),
+      makeProfile(),
+      makeResumeIntel(),
+      [],
+      { fetchFn: mockFetchSuccess(responseWithCount), _chainOverride: ANTHROPIC_CHAIN }
+    );
+
+    expect(result).not.toBeNull();
+    expect(result!).not.toContain("[287 words]");
+  });
+});
+
+describe("generateCoverLetter — fallback", () => {
+  it("returns null when fetch throws", async () => {
+    const result = await generateCoverLetter(
+      makeJob(), makeProfile(), makeResumeIntel(), [],
+      { fetchFn: mockFetchFailure(), _chainOverride: ANTHROPIC_CHAIN }
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null on HTTP 500", async () => {
+    const result = await generateCoverLetter(
+      makeJob(), makeProfile(), makeResumeIntel(), [],
+      { fetchFn: mockFetchHttpError(500), _chainOverride: ANTHROPIC_CHAIN }
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null when chain is empty", async () => {
+    const noOpFetch = vi.fn();
+    const result = await generateCoverLetter(
+      makeJob(), makeProfile(), makeResumeIntel(), [],
+      { fetchFn: noOpFetch as unknown as typeof fetch, _chainOverride: [] }
+    );
+
+    expect(result).toBeNull();
+    expect(noOpFetch).not.toHaveBeenCalled();
+  });
+
+  it("returns null when response is too short", async () => {
+    const result = await generateCoverLetter(
+      makeJob(), makeProfile(), makeResumeIntel(), [],
+      { fetchFn: mockFetchSuccess("Hi Acme."), _chainOverride: ANTHROPIC_CHAIN }
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null when response does not mention the company", async () => {
+    const offTopicResponse = "I am writing to apply for a role at TotallyDifferentCompany. " +
+      "My background in software engineering makes me a strong candidate. ".repeat(3);
+    const result = await generateCoverLetter(
+      makeJob(), makeProfile(), makeResumeIntel(), [],
+      { fetchFn: mockFetchSuccess(offTopicResponse), _chainOverride: ANTHROPIC_CHAIN }
+    );
+
+    expect(result).toBeNull();
+  });
+});
+
+describe("generateCoverLetter — privacy", () => {
+  it("does not include raw resume text in the fetch payload", async () => {
+    const rawResumeText = "CONFIDENTIAL_RESUME_SHOULD_NOT_APPEAR";
+    const resumeIntel = makeResumeIntel({ impact_signals: ["typescript", "react"] });
+
+    let capturedBody = "";
+    const spyFetch: typeof fetch = vi.fn().mockImplementation(async (_url, init) => {
+      capturedBody = typeof init?.body === "string" ? init.body : "";
+      return {
+        ok: true,
+        json: async () => ({ content: [{ type: "text", text: VALID_COVER_LETTER_RESPONSE }] }),
+      } as unknown as Response;
+    });
+
+    await generateCoverLetter(
+      makeJob(),
+      makeProfile({ resume_summary: rawResumeText }),
+      resumeIntel,
+      [],
+      { fetchFn: spyFetch, _chainOverride: ANTHROPIC_CHAIN }
+    );
+
+    expect(capturedBody).not.toContain(rawResumeText);
   });
 });

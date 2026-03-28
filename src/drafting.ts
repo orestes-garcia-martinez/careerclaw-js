@@ -1,22 +1,32 @@
 /**
- * drafting.ts — Deterministic outreach draft generator (Free tier).
+ * drafting.ts — Deterministic outreach draft and cover letter generators.
  *
  * `draftOutreach()` produces a professional outreach email from a fixed
  * template. It is the Free tier baseline and always runs as the fallback
  * when LLM enhancement is unavailable or fails.
  *
+ * `buildTemplateCoverLetter()` produces a deterministic cover letter
+ * fallback when LLM generation fails. Uses keyword signals from gap
+ * analysis to add specificity. Always sets `is_template: true`.
+ *
  * Template is ported directly from the Python careerclaw implementation
  * so output format is consistent across both runtimes.
  *
  * Design constraints (from MVP Feature Contract):
- *   - 150–250 word body
+ *   - 150–250 word body (outreach) / 200–300 word body (cover letter)
  *   - Professional and concise tone
  *   - Inserts job title, company name, matched skill highlights
  *   - No external dependencies, fully deterministic
- *   - llm_enhanced is always false
+ *   - llm_enhanced is always false / is_template is always true
  */
 
-import type { NormalizedJob, UserProfile, OutreachDraft } from "./models.js";
+import type {
+  NormalizedJob,
+  UserProfile,
+  OutreachDraft,
+  CoverLetter,
+  GapAnalysisResult,
+} from "./models.js";
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -123,6 +133,79 @@ function buildHighlightsClause(
   const formatted = formatList(highlights);
   return `My background includes direct experience with ${formatted}, ` +
     `which maps well to what you're building at ${job.company}.`;
+}
+
+// ---------------------------------------------------------------------------
+// Template cover letter (Pro fallback)
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a deterministic cover letter when LLM generation fails.
+ *
+ * Uses gap analysis results to add keyword specificity. The output is
+ * structured and professional but lacks the "soul" of an LLM-generated
+ * letter. Always sets `is_template: true` so the UI can communicate
+ * this to the user.
+ *
+ * @param job            - The job to write a cover letter for
+ * @param profile        - User profile
+ * @param matchedKeywords - Matched keywords from ScoredJob
+ * @param gapResult      - Gap analysis result for match_score and coverage
+ */
+export function buildTemplateCoverLetter(
+  job: NormalizedJob,
+  profile: UserProfile,
+  matchedKeywords: string[],
+  gapResult: GapAnalysisResult
+): CoverLetter {
+  const experienceClause = buildExperienceClause(profile);
+  const highlights = matchedKeywords.slice(0, 4);
+  const highlightsText = highlights.length > 0
+    ? formatList(highlights)
+    : "relevant technical skills";
+
+  const gapAcknowledgement =
+    gapResult.summary.top_gaps.keywords.length > 0
+      ? ` While I am continuing to deepen my expertise in areas such as ` +
+        `${formatList(gapResult.summary.top_gaps.keywords.slice(0, 2))}, ` +
+        `I am motivated to grow quickly in these areas and bring a strong ` +
+        `foundation to build on.`
+      : "";
+
+  const body = [
+    `Dear ${job.company} hiring team,`,
+    "",
+    `I am writing to apply for the ${job.title} position at ${job.company}. ` +
+      `With ${experienceClause} in software engineering, I am confident ` +
+      `that my background aligns well with the requirements of this role.`,
+    "",
+    `My experience includes direct work with ${highlightsText}, which ` +
+      `maps closely to the technical needs outlined for this position. ` +
+      `I have consistently delivered production-quality systems with a focus ` +
+      `on reliability, maintainability, and close collaboration with ` +
+      `cross-functional stakeholders.`,
+    "",
+    `I am drawn to ${job.company} because of the opportunity to contribute ` +
+      `to meaningful technical challenges at scale.${gapAcknowledgement}`,
+    "",
+    `I would welcome the opportunity to discuss how my background can ` +
+      `contribute to your team's goals.`,
+    "",
+    "Sincerely,",
+    "[Your Name]",
+  ].join("\n");
+
+  return {
+    job_id: job.job_id,
+    body,
+    tone: "professional",
+    is_template: true,
+    match_score: gapResult.fit_score,
+    keyword_coverage: {
+      top_signals: gapResult.summary.top_signals.keywords,
+      top_gaps: gapResult.summary.top_gaps.keywords,
+    },
+  };
 }
 
 /**
