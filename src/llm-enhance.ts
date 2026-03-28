@@ -232,14 +232,47 @@ function buildPrompt(
     : "";
 
   if (mode === "cover_letter") {
-    // TODO: Phase X — cover_letter mode (Pro only).
-    // Spec: under 300 words, zero generic filler, every sentence connects
-    // the candidate to this specific role. Paragraph structure:
-    //   1. Why this company/role specifically (1–2 sentences)
-    //   2. Strongest signal mapped to the role's core need (2–3 sentences)
-    //   3. Gap acknowledgement as motivation (1 sentence, only if gaps exist)
-    //   4. Clear call to action (1 sentence)
-    // For now fall through to draft mode until the feature ships.
+    // Use more impact signals for cover letters — they need deeper substance
+    const topPhrases = resumeIntel.phrase_stream.slice(0, 6).join(", ");
+    const phraseClause = topPhrases
+      ? `\nCandidate's notable competency areas: ${topPhrases}`
+      : "";
+
+    return [
+      `Write a tailored cover letter from a job candidate for a specific role.`,
+      ``,
+      `Role: ${job.title}`,
+      `Company: ${job.company}`,
+      `Candidate experience: ${experienceClause}`,
+      `Candidate's strongest signals: ${strengths}`,
+      phraseClause,
+      gapsInstruction,
+      ``,
+      `Output format (follow exactly):`,
+      `- Full cover letter body only — no subject line, no headers, no date`,
+      `- Maximum 300 words — count before finishing and cut if over`,
+      ``,
+      `Structure (4 paragraphs):`,
+      `1. Opening (1–2 sentences): Why this company and this role specifically.`,
+      `   Name the company and role. Show you understand what they do.`,
+      `2. Core strength (2–3 sentences): Map the candidate's strongest 1–2 signals`,
+      `   directly to the role's core need using the Bridge Sentence method.`,
+      `   Example: "Because I [did X], I can solve your need for [Y] from day one."`,
+      `3. Supporting evidence (2–3 sentences): Connect a second area of strength`,
+      `   to a challenge this company likely faces. If gap keywords are provided,`,
+      `   one sentence frames a gap as active growth motivation — not an apology.`,
+      `4. Close (1 sentence): A single, confident call to action.`,
+      ``,
+      `Writing requirements:`,
+      `- Every paragraph must contain at least one Bridge Sentence`,
+      `- Closing: "Sincerely," on its own line, then "[Your Name]" on the next`,
+      `- Plain text only — no markdown, no bullet points, no headers`,
+      `- Do NOT invent specific projects, metrics, or company details`,
+      `- Do NOT include any placeholder other than [Your Name]`,
+      `- Zero generic filler — every sentence must connect the candidate to this role`,
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 
   // Draft mode — LLM-enhanced outreach email
@@ -514,4 +547,86 @@ function parseResponse(
   }
 
   return { subject, body };
+}
+
+// ---------------------------------------------------------------------------
+// Cover letter generation
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract the cover letter body from raw LLM text.
+ *
+ * Cover letters have no subject line — the full response is the body.
+ * Returns null if the response fails sanity checks.
+ */
+function parseCoverLetterResponse(
+  text: string,
+  job: NormalizedJob
+): string | null {
+  // Strip any leading/trailing whitespace and word count annotations
+  const body = text
+    .replace(/\[\d+\s*words?\]/gi, "")
+    .trim();
+
+  if (!body || body.length < 50) return null;
+
+  // Sanity check: body must mention the company
+  if (!body.toLowerCase().includes(job.company.toLowerCase().slice(0, 6))) {
+    return null;
+  }
+
+  return body;
+}
+
+/**
+ * Generate a tailored cover letter for a specific job match (Pro tier).
+ *
+ * Uses the same LLM provider chain and failover logic as `enhanceDraft()`.
+ * Returns null on failure — caller is responsible for template fallback.
+ *
+ * @param job          - The job to write a cover letter for
+ * @param profile      - User profile
+ * @param resumeIntel  - Section-aware keyword signals
+ * @param gapKeywords  - Keywords from the job not present in the profile
+ * @param options      - Injectable fetch and chain override for testing
+ * @returns Cover letter body string, or null on failure
+ */
+export async function generateCoverLetter(
+  job: NormalizedJob,
+  profile: UserProfile,
+  resumeIntel: ResumeIntelligence,
+  gapKeywords: string[] = [],
+  options: EnhanceOptions = {}
+): Promise<string | null> {
+  const fetchFn = options.fetchFn ?? fetch;
+  const chain = options._chainOverride ?? buildChain();
+  if (chain.length === 0) {
+    return null;
+  }
+
+  let consecutiveFails = 0;
+
+  for (const candidate of chain) {
+    if (consecutiveFails >= LLM_CIRCUIT_BREAKER_FAILS) {
+      break;
+    }
+
+    for (let attempt = 0; attempt < LLM_MAX_RETRIES; attempt++) {
+      if (consecutiveFails >= LLM_CIRCUIT_BREAKER_FAILS) break;
+
+      try {
+        const prompt = buildPrompt(job, profile, resumeIntel, gapKeywords, "cover_letter");
+        const text = await callProvider(candidate, prompt, fetchFn);
+        const body = parseCoverLetterResponse(text, job);
+        if (body) {
+          return body;
+        }
+        consecutiveFails++;
+      } catch {
+        consecutiveFails++;
+      }
+    }
+  }
+
+  return null;
 }

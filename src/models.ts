@@ -210,6 +210,20 @@ export interface GapAnalysisResult {
   };
 }
 
+/**
+ * A gap analysis report for a specific job match (Pro tier).
+ *
+ * Wraps GapAnalysisResult with job metadata for UI display symmetry
+ * with CoverLetter. The `analysis` field contains the full gap result
+ * which can be passed as `precomputedGap` to cover letter generation.
+ */
+export interface GapAnalysisReport {
+  job_id: string;
+  title: string;
+  company: string;
+  analysis: GapAnalysisResult;
+}
+
 // ---------------------------------------------------------------------------
 // Drafting types
 // ---------------------------------------------------------------------------
@@ -220,6 +234,32 @@ export interface OutreachDraft {
   body: string;
   /** True when the draft was produced by LLM enhancement (Pro tier). */
   llm_enhanced: boolean;
+}
+
+/** Tone presets for cover letter generation. */
+export type CoverLetterTone = "professional";
+
+/**
+ * A tailored cover letter generated for a specific job match (Pro tier).
+ *
+ * When LLM generation fails, a deterministic template is used as fallback
+ * with `is_template: true`. The `match_score` and `keyword_coverage` are
+ * always populated from gap analysis regardless of generation method.
+ */
+export interface CoverLetter {
+  job_id: string;
+  body: string;
+  /** Tone preset used for generation. Extensible for future presets. */
+  tone: CoverLetterTone;
+  /** True when the letter was produced by a deterministic template fallback. */
+  is_template: boolean;
+  /** Weighted fit score from gap analysis — higher is a stronger match. */
+  match_score: number;
+  /** Top keyword signals and gaps surfaced by gap analysis. */
+  keyword_coverage: {
+    top_signals: string[];
+    top_gaps: string[];
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +299,10 @@ export interface BriefingResult {
   matches: ScoredJob[];
   /** One OutreachDraft per match, in the same order as matches[]. */
   drafts: OutreachDraft[];
+  /** Pro tier: tailored cover letters. Empty array when not requested or free tier. */
+  cover_letters: CoverLetter[];
+  /** Pro tier: detailed gap analysis reports. Empty array when not requested or free tier. */
+  gap_analyses: GapAnalysisReport[];
   /** Counts from upsertEntries() — always accurate even in dry-run. */
   tracking: {
     created: number;

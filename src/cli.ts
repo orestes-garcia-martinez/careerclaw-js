@@ -9,7 +9,7 @@ import {
   DEFAULT_TOP_K,
   PRO_KEY,
 } from "./config.js";
-import type { UserProfile, BriefingResult, ScoredJob, OutreachDraft } from "./models.js";
+import type { UserProfile, BriefingResult, ScoredJob, OutreachDraft, CoverLetter, GapAnalysisReport } from "./models.js";
 
 
 const { values: args } = parseArgs({
@@ -17,6 +17,8 @@ const { values: args } = parseArgs({
     profile: { type: "string", short: "p" },
     "resume-txt": { type: "string" },
     "top-k": { type: "string", short: "k" },
+    "cover-letter": { type: "string", short: "c" },
+    "gap-analysis": { type: "string", short: "g" },
     "dry-run": { type: "boolean", short: "d", default: false },
     json: { type: "boolean", short: "j", default: false },
     help: { type: "boolean", short: "h", default: false },
@@ -50,6 +52,40 @@ const jsonMode = args["json"] as boolean;
 
 if (isNaN(topK) || topK < 1) {
   fatal(`--top-k must be a positive integer, got: ${args["top-k"]}`);
+}
+
+// Parse --cover-letter flag: comma-separated 1-based indices → 0-based array
+const coverLetterRaw = args["cover-letter"] ?? null;
+let coverLetterMatchIndices: number[] = [];
+if (coverLetterRaw) {
+  coverLetterMatchIndices = coverLetterRaw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => {
+      const n = parseInt(s, 10);
+      if (isNaN(n) || n < 1) {
+        fatal(`--cover-letter indices must be positive integers (1-based), got: "${s}"`);
+      }
+      return n - 1; // Convert 1-based (human) to 0-based (internal)
+    });
+}
+
+// Parse --gap-analysis flag: same pattern as --cover-letter
+const gapAnalysisRaw = args["gap-analysis"] ?? null;
+let gapAnalysisMatchIndices: number[] = [];
+if (gapAnalysisRaw) {
+  gapAnalysisMatchIndices = gapAnalysisRaw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => {
+      const n = parseInt(s, 10);
+      if (isNaN(n) || n < 1) {
+        fatal(`--gap-analysis indices must be positive integers (1-based), got: "${s}"`);
+      }
+      return n - 1;
+    });
 }
 
 function loadProfile(path: string): UserProfile {
@@ -87,7 +123,7 @@ function loadResumeTxt(path: string): string | null {
 }
 
 function printBriefing(result: BriefingResult): void {
-  const { run, matches, drafts, tracking, dry_run } = result;
+  const { run, matches, drafts, cover_letters, gap_analyses, tracking, dry_run } = result;
   const sources = Object.entries(run.sources)
     .map(([s, n]) => `${s}: ${n}`)
     .join(" | ");
@@ -130,6 +166,49 @@ function printBriefing(result: BriefingResult): void {
     console.log();
   }
 
+  if (cover_letters.length > 0) {
+    console.log(`Cover Letters:\n`);
+    for (let i = 0; i < cover_letters.length; i++) {
+      const cl: CoverLetter = cover_letters[i]!;
+      // Find the match index for display (1-based)
+      const matchIdx = matches.findIndex((m) => m.job.job_id === cl.job_id);
+      const matchLabel = matchIdx >= 0
+        ? `Match #${matchIdx + 1} — ${matches[matchIdx]!.job.title} @ ${matches[matchIdx]!.job.company}`
+        : cl.job_id;
+      const templateTag = cl.is_template ? " [template fallback]" : "";
+      const scorePct = Math.round(cl.match_score * 100);
+
+      console.log(`--- Cover Letter: ${matchLabel}${templateTag} ---`);
+      console.log(`Match score: ${scorePct}% | Tone: ${cl.tone}`);
+      console.log(`Signals: ${cl.keyword_coverage.top_signals.join(", ") || "(none)"}`);
+      console.log(`Gaps: ${cl.keyword_coverage.top_gaps.join(", ") || "(none)"}`);
+      console.log();
+      console.log(cl.body);
+      console.log();
+    }
+  }
+
+  if (gap_analyses.length > 0) {
+    console.log(`Gap Analyses:\n`);
+    for (let i = 0; i < gap_analyses.length; i++) {
+      const ga: GapAnalysisReport = gap_analyses[i]!;
+      const fitPct = Math.round(ga.analysis.fit_score * 100);
+      const fitRawPct = Math.round(ga.analysis.fit_score_unweighted * 100);
+
+      console.log(`--- Gap Analysis: ${ga.title} @ ${ga.company} ---`);
+      console.log(`Fit score: ${fitPct}% (weighted) | ${fitRawPct}% (unweighted)`);
+      console.log();
+      console.log(`  Signals (your resume matches):`);
+      console.log(`    Keywords: ${ga.analysis.summary.top_signals.keywords.join(", ") || "(none)"}`);
+      console.log(`    Phrases:  ${ga.analysis.summary.top_signals.phrases.join(", ") || "(none)"}`);
+      console.log();
+      console.log(`  Gaps (missing from your resume):`);
+      console.log(`    Keywords: ${ga.analysis.summary.top_gaps.keywords.join(", ") || "(none)"}`);
+      console.log(`    Phrases:  ${ga.analysis.summary.top_gaps.phrases.join(", ") || "(none)"}`);
+      console.log();
+    }
+  }
+
   console.log(`Tracking:`);
   console.log(`  ${tracking.created} new job(s) saved`);
   if (tracking.already_present > 0) {
@@ -156,6 +235,12 @@ async function main(): Promise<void> {
       resumeText,
       topK,
       dryRun,
+      ...(coverLetterMatchIndices.length > 0
+        ? { coverLetterMatchIndices }
+        : {}),
+      ...(gapAnalysisMatchIndices.length > 0
+        ? { gapAnalysisMatchIndices }
+        : {}),
     },
     PRO_KEY ? { proKey: PRO_KEY } : {}
   );
@@ -192,6 +277,12 @@ Options:
       --resume-txt PATH  Plain-text resume to enhance keyword matching
                          (default: ~/.careerclaw/resume.txt if present)
   -k, --top-k INT        Number of top matches to return (default: 3)
+  -c, --cover-letter N   Generate cover letter(s) for match N (1-based).
+                         Comma-separated for multiple: --cover-letter 1,3
+                         Requires Pro tier and a resume.
+  -g, --gap-analysis N   Run detailed gap analysis for match N (1-based).
+                         Comma-separated for multiple: --gap-analysis 1,2
+                         Requires Pro tier and a resume.
   -d, --dry-run          Run without writing tracking or run log
   -j, --json             Machine-readable JSON output (no colour, no headers)
   -v, --version          Show version number
@@ -202,6 +293,8 @@ Examples:
   careerclaw-js --resume-txt ~/.careerclaw/resume.txt --dry-run
   careerclaw-js --json --dry-run
   careerclaw-js --profile ./my-profile.json --top-k 5
+  careerclaw-js --top-k 5 --cover-letter 1 --dry-run
+  careerclaw-js --top-k 5 --cover-letter 1,3 --gap-analysis 1,2 --dry-run --json
 `);
 }
 
