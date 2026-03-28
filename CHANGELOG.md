@@ -6,6 +6,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.3.0...careerclaw-js-v1.4.0) (2026-03-28)
+
+
+### Features
+
+* add cover letter generation and gap analysis to briefing pipeline ([d2ca27d](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/d2ca27d8d5cf63c68fb258e1105e1fc8140577f4))
+* add cover letter generation and gap analysis to briefing pipeline ([e1fb676](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/e1fb6760b1a6e5287a7f667d85dcbecf44f01e3e))
+
+
+### Documentation
+
+* add manual test tasks for CLI and ClawOS user to CLAUDE.md ([5c93a78](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/5c93a789065a0a400035a92f7f9f320f784c016d))
+
 ## [1.3.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.2.0...careerclaw-js-v1.3.0) (2026-03-27)
 
 
