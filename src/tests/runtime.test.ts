@@ -8,8 +8,6 @@ const { mockCheckLicense, mockEnhanceDraft, mockGenerateCoverLetter, mockGapAnal
   mockEnhanceDraft: vi.fn(),
   mockGenerateCoverLetter: vi.fn(),
   mockGapAnalysis: vi.fn(),
-  // Mutable container so the vi.mock factory can store the actual implementation
-  // without hitting the TDZ — vi.hoisted objects are available before mock factories run.
   gapAnalysisRef: { fn: null as null | typeof import("../gap.js").gapAnalysis },
 }));
 
@@ -33,7 +31,7 @@ vi.mock("../gap.js", async () => {
 import { CAREERCLAW_FEATURES, createClawOsExecutionContext } from "../execution-context.js";
 import { runCareerClawStandalone, runCareerClawWithContext } from "../runtime.js";
 import { TrackingRepository } from "../tracking.js";
-import { emptyProfile, type NormalizedJob, type OutreachDraft, type UserProfile } from "../models.js";
+import { emptyProfile, type NormalizedJob, type OutreachDraft, type ResumeIntelligence, type UserProfile } from "../models.js";
 import type { FetchResult } from "../sources.js";
 
 function makeTmpRepo(dryRun = false): TrackingRepository {
@@ -101,8 +99,10 @@ beforeEach(() => {
   mockGapAnalysis.mockReset();
   mockCheckLicense.mockResolvedValue({ valid: true, source: "api" });
   mockEnhanceDraft.mockResolvedValue(makeEnhancedDraft());
-  mockGenerateCoverLetter.mockResolvedValue(null); // Default: LLM fails → template fallback
-  mockGapAnalysis.mockImplementation((...args) => gapAnalysisRef.fn!(...args)); // call through
+  mockGenerateCoverLetter.mockResolvedValue(null);
+  mockGapAnalysis.mockImplementation(
+    (resumeIntel: ResumeIntelligence, job: NormalizedJob) => gapAnalysisRef.fn!(resumeIntel, job)
+  );
 });
 
 describe("runCareerClawStandalone", () => {
@@ -757,5 +757,55 @@ describe("gap cache sharing", () => {
     // If gapCache were bypassed, generateCoverLetterForMatch would call
     // gapAnalysis a second time internally → count would be 2.
     expect(mockGapAnalysis).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("resume intelligence propagation", () => {
+  it("returns the engine-computed resume_intel from the standalone runtime", async () => {
+    const result = await runCareerClawStandalone(
+      {
+        profile: makeProfile({ skills: [], target_roles: [] }),
+        resumeText: "TypeScript React Node AWS architecture leadership",
+        topK: 1,
+        dryRun: true,
+      },
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(result.resume_intel).not.toBeNull();
+    expect(result.resume_intel?.extracted_keywords).toContain("typescript");
+    expect(result.resume_intel?.source).toBe("resume_text");
+  });
+
+  it("preserves an explicit resumeIntel override instead of recomputing it", async () => {
+    const explicitResumeIntel = {
+      extracted_keywords: ["graphql"],
+      extracted_phrases: ["platform engineer"],
+      keyword_stream: ["graphql"],
+      phrase_stream: ["platform engineer"],
+      impact_signals: ["graphql"],
+      keyword_weights: { graphql: 1 },
+      phrase_weights: { "platform engineer": 0.8 },
+      source: "skills_injected" as const,
+    };
+
+    const result = await runCareerClawStandalone(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+      },
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+        resumeIntel: explicitResumeIntel,
+      }
+    );
+
+    expect(result.resume_intel).toEqual(explicitResumeIntel);
   });
 });

@@ -16,7 +16,8 @@ import { join } from "path";
 import { runBriefing } from "../briefing.js";
 import { TrackingRepository } from "../tracking.js";
 import { emptyProfile } from "../models.js";
-import type { NormalizedJob, UserProfile, FetchResult } from "../models.js";
+import type { NormalizedJob, UserProfile } from "../models.js";
+import { FetchResult } from "../sources.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -81,6 +82,7 @@ describe("runBriefing — result shape", () => {
     expect(result).toHaveProperty("run");
     expect(result).toHaveProperty("matches");
     expect(result).toHaveProperty("drafts");
+    expect(result).toHaveProperty("resume_intel");
     expect(result).toHaveProperty("tracking");
     expect(result).toHaveProperty("dry_run");
   });
@@ -272,5 +274,37 @@ describe("runBriefing — edge cases", () => {
         repo: makeTmpRepo(),
       })
     ).resolves.not.toThrow();
+  });
+});
+
+describe("runBriefing — resume intelligence", () => {
+  it("returns the explicit resumeIntel object when provided", async () => {
+    const explicitResumeIntel = {
+      extracted_keywords: ["typescript", "react"],
+      extracted_phrases: ["senior engineer"],
+      keyword_stream: ["typescript", "react"],
+      phrase_stream: ["senior engineer"],
+      impact_signals: ["typescript"],
+      keyword_weights: { typescript: 1, react: 0.9 },
+      phrase_weights: { "senior engineer": 0.8 },
+      source: "resume_text" as const,
+    };
+
+    const result = await runBriefing(makeProfile(), {
+      fetchFn: stubFetch([makeJob()]),
+      repo: makeTmpRepo(),
+      resumeIntel: explicitResumeIntel,
+    });
+
+    expect(result.resume_intel).toEqual(explicitResumeIntel);
+  });
+
+  it("returns null when no resumeIntel is supplied to runBriefing", async () => {
+    const result = await runBriefing(makeProfile(), {
+      fetchFn: stubFetch([makeJob()]),
+      repo: makeTmpRepo(),
+    });
+
+    expect(result.resume_intel).toBeNull();
   });
 });
