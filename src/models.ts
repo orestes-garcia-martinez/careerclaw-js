@@ -299,6 +299,14 @@ export interface BriefingResult {
   matches: ScoredJob[];
   /** One OutreachDraft per match, in the same order as matches[]. */
   drafts: OutreachDraft[];
+  /**
+   * The exact resume intelligence object used during this run.
+   *
+   * Exposing this in the result keeps downstream consumers aligned with
+   * the engine’s actual scoring/gap-analysis inputs instead of rebuilding
+   * an approximate object later.
+   */
+  resume_intel: ResumeIntelligence | null;
   /** Pro tier: tailored cover letters. Empty array when not requested or free tier. */
   cover_letters: CoverLetter[];
   /** Pro tier: detailed gap analysis reports. Empty array when not requested or free tier. */

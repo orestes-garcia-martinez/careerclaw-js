@@ -264,6 +264,7 @@ async function runBriefingInternal(
     run,
     matches,
     drafts,
+    resume_intel: resumeIntel ?? null,
     cover_letters: coverLetters,
     gap_analyses: gapAnalyses,
     tracking: {
