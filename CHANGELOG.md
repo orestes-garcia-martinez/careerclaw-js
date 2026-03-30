@@ -6,6 +6,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.4.0...careerclaw-js-v1.5.0) (2026-03-30)
+
+
+### Features
+
+* **models:** expose resume_intel on BriefingResult ([18fb459](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/18fb459d6a394d47acbdda8fef4a4b470575594c))
+* **models:** expose resume_intel on BriefingResult ([c475616](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/c4756162aaf63c6fd3cc42748c8aa33e51462aba))
+
+
+### Documentation
+
+* slim CLAUDE.md and move knowledge into on-demand skills ([ef4b0c8](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/ef4b0c821df7488be670181f611b6920ccbd7b89))
+* slim CLAUDE.md and move knowledge into on-demand skills ([8b20f9c](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/8b20f9c6d0612ce9c1406bb97018eb0cba7e4283))
+
 ## [1.4.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.3.0...careerclaw-js-v1.4.0) (2026-03-28)
 
 
