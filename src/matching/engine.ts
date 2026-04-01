@@ -18,9 +18,14 @@
  * `ScoredJob[]` — they are score-agnostic.
  */
 
-import type { NormalizedJob, UserProfile, ScoredJob } from "../models.js";
+import type {
+  NormalizedJob,
+  ResumeIntelligence,
+  UserProfile,
+  ScoredJob,
+} from "../models.js";
 import { DEFAULT_TOP_K } from "../config.js";
-import { compositeScore } from "./scoring.js";
+import { compositeScore, compositeScoreHybrid } from "./scoring.js";
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -53,6 +58,52 @@ export function rankJobs(
       };
     })
     // Stage 2: drop jobs that fail the technical relevance gate
+    .filter((scored) => scored.breakdown.keyword >= minKeywordScore)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+
+/**
+ * Hybrid variant of rankJobs that layers taxonomy-expanded lexical scoring
+ * with semantic concept matching.
+ *
+ * The signature is async to accommodate future embedding-based signals
+ * (e.g. vector similarity via a local model or remote API). The current
+ * implementation resolves synchronously — callers should always await to
+ * remain forward-compatible.
+ */
+export async function rankJobsHybrid(
+  jobs: NormalizedJob[],
+  profile: UserProfile,
+  options: {
+    resumeText?: string;
+    resumeIntel?: ResumeIntelligence | null;
+    limit?: number;
+    minKeywordScore?: number;
+  } = {}
+): Promise<ScoredJob[]> {
+  const {
+    resumeText,
+    resumeIntel,
+    limit = DEFAULT_TOP_K,
+    minKeywordScore = 0.01,
+  } = options;
+
+  return jobs
+    .map((job): ScoredJob => {
+      const { total, breakdown, matched, gaps } = compositeScoreHybrid(profile, job, {
+        ...(resumeText !== undefined ? { resumeText } : {}),
+        ...(resumeIntel !== undefined ? { resumeIntel } : {}),
+      });
+      return {
+        job,
+        score: total,
+        breakdown,
+        matched_keywords: matched,
+        gap_keywords: gaps,
+      };
+    })
     .filter((scored) => scored.breakdown.keyword >= minKeywordScore)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);

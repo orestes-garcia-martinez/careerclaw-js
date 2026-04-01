@@ -1,47 +1,45 @@
 /**
  * matching/scoring.ts — Pure per-dimension scoring functions.
  *
- * Each dimension function returns a value in [0, 1].
- * Neutral (0.5) is used when data is missing so absent fields neither
- * reward nor penalise the composite score.
+ * The original deterministic scorer remains intact for backward
+ * compatibility. This file now also exposes a hybrid path that layers:
  *
- * compositeScore() uses a multiplicative model:
+ *   1. Enhanced lexical overlap via taxonomy expansion
+ *   2. Semantic concept overlap via canonical skill mapping
+ *   3. The existing metadata quality dimensions
  *
- *   total = sqrt(keyword_score) × qualityBase
- *
- * where qualityBase = weighted sum of experience + salary + work_mode.
- *
- * This means keyword overlap is a signal multiplier, not just another
- * additive term. A job with zero keyword overlap scores 0.0 regardless
- * of how well it matches on salary or work mode — solving the problem
- * of irrelevant jobs floating to the top on neutral dimension scores.
- *
- * sqrt() softens the penalty for partial keyword matches: a job with
- * 25% keyword overlap gets a signal of 0.5 (not 0.25), so genuine
- * partial matches are still surfaced meaningfully.
- *
- * All functions are pure and stateless — safe to unit test in isolation.
+ * Design principle: the ranking engine must remain local-first and
+ * fail-soft. If semantic signals are unavailable, the hybrid path falls
+ * back to lexical-only behaviour rather than producing neutral inflation.
  */
 
-import type { NormalizedJob, UserProfile, MatchBreakdown } from "../models.js";
+import type {
+  MatchBreakdown,
+  NormalizedJob,
+  ResumeIntelligence,
+  UserProfile,
+} from "../models.js";
 import {
   tokenizeUnique,
   tokenOverlap,
   matchedTokens,
   gapTokens,
 } from "../core/text-processing.js";
-
-// ---------------------------------------------------------------------------
-// Weights for the quality dimensions (must sum to 1.0)
-// ---------------------------------------------------------------------------
+import {
+  buildJobSemanticView,
+  buildProfileSemanticView,
+  computeSemanticScore,
+  weightedOverlapScore,
+} from "./semantic-scoring.js";
+import { SEMANTIC_MATCHING } from "../config.js";
 
 /**
  * Quality dimension weights — applied AFTER the keyword signal multiplier.
- * These normalise the three metadata dimensions to a [0, 1] quality base.
+ * Normalised to sum to 1.0 so the quality base stays in [0, 1].
  *
  * Originating weights (additive model):
  *   experience 20%, salary 15%, work_mode 15%  →  sum = 50%
- * Normalised to sum to 1.0 for the quality base:
+ * Normalised:
  *   experience 0.4, salary 0.3, work_mode 0.3
  */
 const QUALITY_WEIGHTS = {
@@ -56,9 +54,10 @@ if (Math.abs(_weightSum - 1.0) > 1e-9) {
   throw new Error(`QUALITY_WEIGHTS must sum to 1.0, got ${_weightSum}`);
 }
 
-// ---------------------------------------------------------------------------
-// Keyword score
-// ---------------------------------------------------------------------------
+export interface HybridMatchBreakdown extends MatchBreakdown {
+  lexical_keyword: number;
+  semantic: number;
+}
 
 /**
  * Score keyword overlap between the user profile and a job posting.
@@ -93,17 +92,22 @@ export function scoreKeyword(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Experience score
-// ---------------------------------------------------------------------------
+export function scoreKeywordEnhanced(
+  profile: UserProfile,
+  job: NormalizedJob,
+  options: { resumeText?: string; resumeIntel?: ResumeIntelligence | null } = {}
+): { score: number; matched: string[]; gaps: string[] } {
+  const profileView = buildProfileSemanticView(profile, options);
+  const jobView = buildJobSemanticView(job);
+  return weightedOverlapScore(profileView.lexicalWeights, jobView.lexicalWeights);
+}
 
 /**
  * Score alignment between user experience years and job requirements.
  *
- * - Returns neutral 0.5 if either side has no data.
- * - Returns 1.0 if the job requires 0 years.
- * - Clamped linear: user_years / job_years, capped at 1.0.
- *   Over-qualified candidates are not penalised.
+ * Returns neutral 0.5 if either side has no data.
+ * Returns 1.0 if the job requires 0 years.
+ * Clamped linear: user_years / job_years, capped at 1.0 (over-qualified not penalised).
  */
 export function scoreExperience(
   profile: UserProfile,
@@ -119,16 +123,12 @@ export function scoreExperience(
   return Math.min(userYears / jobYears, 1.0);
 }
 
-// ---------------------------------------------------------------------------
-// Salary score
-// ---------------------------------------------------------------------------
-
 /**
  * Score alignment between user salary expectations and the job's posted range.
  *
- * - Returns neutral 0.5 if either side has no data.
- * - Returns 1.0 if job minimum meets or exceeds user minimum.
- * - Proportional score if job pays less, clamped to [0, 1].
+ * Returns neutral 0.5 if either side has no data.
+ * Returns 1.0 if job minimum meets or exceeds user minimum.
+ * Proportional score if job pays less, clamped to [0, 1].
  */
 export function scoreSalary(
   profile: UserProfile,
@@ -145,17 +145,12 @@ export function scoreSalary(
   return Math.max(jobMin / userMin, 0.0);
 }
 
-// ---------------------------------------------------------------------------
-// Work mode score
-// ---------------------------------------------------------------------------
-
 /**
  * Score alignment between user work mode preference and job work mode.
  *
- * - Returns 1.0 on exact match.
- * - Returns 0.5 if either side is null (insufficient data).
- * - Returns 0.5 if one side is hybrid (partial compatibility).
- * - Returns 0.0 on hard mismatch (remote vs onsite).
+ * Returns 1.0 on exact match, or if the user accepts any work mode.
+ * Returns 0.5 if either side is null (insufficient data) or one side is hybrid.
+ * Returns 0.0 on hard mismatch (e.g. remote vs onsite).
  */
 export function scoreWorkMode(
   profile: UserProfile,
@@ -166,18 +161,15 @@ export function scoreWorkMode(
 
   if (userMode === null || userMode === undefined) return 0.5;
   if (jobMode === null || jobMode === undefined) return 0.5;
+  if (userMode === "any") return 1.0;
   if (userMode === jobMode) return 1.0;
   if (userMode === "hybrid" || jobMode === "hybrid") return 0.5;
 
   return 0.0;
 }
 
-// ---------------------------------------------------------------------------
-// Composite score — multiplicative model
-// ---------------------------------------------------------------------------
-
 /**
- * Compute the weighted composite score.
+ * Compute the weighted composite score (legacy / lexical-only path).
  *
  * Formula:
  *   qualityBase = (experience × 0.4) + (salary × 0.3) + (work_mode × 0.3)
@@ -213,9 +205,57 @@ export function compositeScore(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+export function compositeScoreHybrid(
+  profile: UserProfile,
+  job: NormalizedJob,
+  options: { resumeText?: string; resumeIntel?: ResumeIntelligence | null } = {}
+): {
+  total: number;
+  breakdown: HybridMatchBreakdown;
+  matched: string[];
+  gaps: string[];
+} {
+  const lexicalBaseline = scoreKeyword(profile, job);
+
+  // Build views once — shared by both lexical-enhanced and semantic scoring
+  // to avoid recomputing the job view twice per job.
+  const profileView = buildProfileSemanticView(profile, options);
+  const jobView = buildJobSemanticView(job);
+  const lexicalEnhanced = weightedOverlapScore(profileView.lexicalWeights, jobView.lexicalWeights);
+  const semantic = computeSemanticScore(profileView, jobView);
+
+  const experience = scoreExperience(profile, job);
+  const salary = scoreSalary(profile, job);
+  const work_mode = scoreWorkMode(profile, job);
+
+  const qualityBase =
+    experience * QUALITY_WEIGHTS.experience +
+    salary     * QUALITY_WEIGHTS.salary +
+    work_mode  * QUALITY_WEIGHTS.work_mode;
+
+  const lexicalForRanking = lexicalEnhanced.score;
+  const signalInput = semantic.available
+    ? lexicalForRanking * SEMANTIC_MATCHING.WEIGHTS.LEXICAL +
+      semantic.score * SEMANTIC_MATCHING.WEIGHTS.SEMANTIC
+    : lexicalForRanking;
+
+  const signal = Math.sqrt(signalInput);
+  const total = roundScore(signal * qualityBase);
+
+  return {
+    total,
+    breakdown: {
+      keyword: lexicalForRanking,
+      lexical_keyword: lexicalBaseline.score,
+      semantic: semantic.available ? semantic.score : 0,
+      experience,
+      salary,
+      work_mode,
+    },
+    matched: [...new Set([...lexicalEnhanced.matched, ...semantic.matched])],
+    gaps: [...new Set([...lexicalEnhanced.gaps, ...semantic.gaps])],
+  };
+}
 
 function roundScore(n: number): number {
   return Math.round(n * 10_000) / 10_000;

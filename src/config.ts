@@ -93,6 +93,51 @@ export const FREE_TOP_K = 3;
 export const PRO_TOP_K = 10;
 
 // ---------------------------------------------------------------------------
+// Semantic matching
+// ---------------------------------------------------------------------------
+
+export const SEMANTIC_MATCHING = {
+	ENABLED: (process.env["CAREERCLAW_SEMANTIC_MATCHING"] ?? "true") !== "false",
+
+	/**
+	 * Blend of the enhanced lexical score and the taxonomy-based semantic score
+	 * within the hybrid signal input.
+	 *
+	 *   signalInput = lexical × LEXICAL + semantic × SEMANTIC
+	 *
+	 * Increase SEMANTIC if taxonomy coverage is broad and you trust concept
+	 * resolution; decrease it if the taxonomy is thin and lexical overlap is
+	 * the more reliable signal.
+	 */
+	WEIGHTS: {
+		LEXICAL: 0.55,
+		SEMANTIC: 0.45,
+	},
+
+	/**
+	 * Blend of taxonomy concept matches vs. verbatim phrase matches within
+	 * the semantic score itself.
+	 *
+	 *   semanticScore = conceptScore × CONCEPT + phraseScore × PHRASE
+	 *
+	 * Concepts (taxonomy alias resolution) are high-precision but
+	 * taxonomy-bounded — they only fire when both sides resolve to the same
+	 * canonical key. Phrases (verbatim multi-gram matches) are the fallback
+	 * for niche industry terms the taxonomy does not yet cover.
+	 *
+	 * Current 80/20 default is conservative: it favours the reliable concept
+	 * signal while the taxonomy is still in Phase 1 (healthcare, finance,
+	 * tech, trades). As taxonomy coverage grows thinner for niche domains,
+	 * shifting toward 60/40 is a reasonable next step — validate against
+	 * real match outcomes before changing.
+	 */
+	CONCEPT_PHRASE_WEIGHTS: {
+		CONCEPT: 0.8,
+		PHRASE: 0.2,
+	},
+} as const;
+
+// ---------------------------------------------------------------------------
 // LLM (Pro tier)
 // ---------------------------------------------------------------------------
 

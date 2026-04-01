@@ -147,8 +147,12 @@ export interface BriefingRun {
  * All values are in [0, 1].
  */
 export interface MatchBreakdown {
-  /** Raw Jaccard-like keyword overlap score in [0, 1]. */
+  /** Primary keyword signal used by the active matcher path. */
   keyword: number;
+  /** Optional raw lexical score from the legacy matcher for comparison/debugging. */
+  lexical_keyword?: number;
+  /** Optional semantic concept score from the hybrid matcher. */
+  semantic?: number;
   experience: number;
   salary: number;
   work_mode: number;

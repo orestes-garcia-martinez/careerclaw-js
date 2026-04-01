@@ -55,6 +55,7 @@ export async function runCareerClawStandalone(
     ...(options.fetchFn !== undefined ? { fetchFn: options.fetchFn } : {}),
     ...(options.repo !== undefined ? { repo: options.repo } : {}),
     resumeIntel,
+    ...(typeof input.resumeText === "string" ? { resumeText: input.resumeText } : {}),
     ...(options.proKey !== undefined ? { proKey: options.proKey } : {}),
     ...(options.enhanceFetchFn !== undefined
       ? { enhanceFetchFn: options.enhanceFetchFn }
@@ -91,6 +92,7 @@ export async function runCareerClawWithContext(
     ...(options.fetchFn !== undefined ? { fetchFn: options.fetchFn } : {}),
     ...(options.repo !== undefined ? { repo: options.repo } : {}),
     resumeIntel,
+    ...(typeof input.resumeText === "string" ? { resumeText: input.resumeText } : {}),
     ...(options.enhanceFetchFn !== undefined
       ? { enhanceFetchFn: options.enhanceFetchFn }
       : {}),
