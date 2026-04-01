@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { rankJobs } from "../matching/engine.js";
+import { rankJobs, rankJobsHybrid } from "../matching/engine.js";
 import { emptyProfile } from "../models.js";
 import type { NormalizedJob, UserProfile } from "../models.js";
 
@@ -205,5 +205,30 @@ describe("rankJobs — ranking order", () => {
     const [result] = rankJobs([job], profile, 1);
     expect(result!.gap_keywords).toContain("golang");
     expect(result!.gap_keywords).not.toContain("typescript");
+  });
+});
+
+
+describe("rankJobsHybrid", () => {
+  it("surfaces alias matches that lexical ranking would miss", async () => {
+    const profile = makeProfile({
+      skills: ["Registered Nurse"],
+      target_roles: ["nurse"],
+      resume_summary: "Experienced registered nurse.",
+    });
+
+    const jobs = [
+      makeJob({
+        job_id: "rn-role",
+        title: "RN",
+        description: "RN needed for patient care and clinical documentation.",
+      }),
+    ];
+
+    const lexical = rankJobs(jobs, profile, 5, 0);
+    const hybrid = await rankJobsHybrid(jobs, profile, { limit: 5, minKeywordScore: 0 });
+
+    expect(hybrid[0]?.score).toBeGreaterThanOrEqual(lexical[0]?.score ?? 0);
+    expect(hybrid[0]?.breakdown.semantic).toBeGreaterThan(0);
   });
 });

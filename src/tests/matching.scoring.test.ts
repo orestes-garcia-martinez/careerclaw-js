@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { compositeScore, scoreKeyword, scoreExperience, scoreSalary, scoreWorkMode } from "../matching/scoring.js";
+import { compositeScore, compositeScoreHybrid, scoreKeyword, scoreKeywordEnhanced, scoreExperience, scoreSalary, scoreWorkMode } from "../matching/scoring.js";
 import { emptyProfile } from "../models.js";
 import type { UserProfile, NormalizedJob } from "../models.js";
 
@@ -231,5 +231,102 @@ describe("scoreWorkMode", () => {
 
   it("returns 0.5 when either side is hybrid", () => {
     expect(scoreWorkMode(makeProfile({ work_mode: "hybrid" }), makeJob({ work_mode: "remote" }))).toBe(0.5);
+  });
+});
+
+
+describe("hybrid scoring", () => {
+  it("matches RN against Registered Nurse through taxonomy expansion", () => {
+    const profile = makeProfile({ skills: ["Registered Nurse"], target_roles: [] });
+    const job = makeJob({ title: "RN", description: "RN needed for patient care and clinical work." });
+
+    const basic = scoreKeyword(profile, job);
+    const enhanced = scoreKeywordEnhanced(profile, job);
+
+    expect(enhanced.score).toBeGreaterThan(basic.score);
+    expect(enhanced.matched).toContain("nursing");
+  });
+
+  it("matches CPA credentials across aliases", () => {
+    const profile = makeProfile({
+      skills: ["Certified Public Accountant"],
+      target_roles: ["accountant"],
+      resume_summary: "CPA with audit and tax background.",
+    });
+    const job = makeJob({
+      title: "Senior CPA",
+      description: "Looking for CPA with GAAP and tax experience.",
+    });
+
+    const hybrid = compositeScoreHybrid(profile, job);
+    expect(hybrid.breakdown.semantic).toBeGreaterThan(0);
+    expect(hybrid.matched).toContain("certified public accountant");
+  });
+
+  it("matches PMP against project management professional", () => {
+    const profile = makeProfile({
+      skills: ["PMP"],
+      target_roles: ["program manager"],
+      resume_summary: "Project leader with stakeholder management experience.",
+    });
+    const job = makeJob({
+      title: "Project Management Professional",
+      description: "PMP certification required with strong scheduling and planning skills.",
+    });
+
+    const hybrid = compositeScoreHybrid(profile, job);
+    expect(hybrid.breakdown.semantic).toBeGreaterThan(0);
+    expect(hybrid.matched).toContain("pmp");
+  });
+
+  it("resume text improves hybrid scoring over skills-only when extra context exists", () => {
+    const profile = makeProfile({
+      skills: ["python"],
+      target_roles: ["backend engineer"],
+      resume_summary: "Backend engineer.",
+    });
+    const job = makeJob({
+      title: "Clinical Data Engineer",
+      description: "Need Python engineer familiar with Epic EMR and clinical documentation systems.",
+    });
+
+    const withoutResume = compositeScoreHybrid(profile, job);
+    const withResume = compositeScoreHybrid(profile, job, {
+      resumeText: "Built Epic EMR integrations and clinical documentation tooling in Python.",
+    });
+
+    expect(withResume.total).toBeGreaterThanOrEqual(withoutResume.total);
+  });
+
+  it("resume text significantly improves score when containing job-specific terminology", () => {
+    const profile = makeProfile({
+      skills: ["nursing"],
+      target_roles: ["nurse"],
+      resume_summary: "Healthcare professional.",
+    });
+    const job = makeJob({
+      title: "ICU Registered Nurse",
+      description: "RN needed for intensive care unit with Epic EMR experience.",
+    });
+
+    const withoutResume = compositeScoreHybrid(profile, job);
+    const withResume = compositeScoreHybrid(profile, job, {
+      resumeText: "5 years as RN in ICU. Expert in Epic EMR documentation and critical care protocols.",
+    });
+
+    // Resume adds "rn", "icu", "epic", "emr" — should produce measurable lift
+    expect(withResume.total).toBeGreaterThan(withoutResume.total);
+    expect(withResume.breakdown.semantic).toBeGreaterThan(withoutResume.breakdown.semantic);
+  });
+
+  it("keeps backward compatible composite score available", () => {
+    const profile = makeProfile({ skills: ["react", "typescript"] });
+    const job = makeJob({ description: "react typescript frontend engineering role" });
+
+    const legacy = compositeScore(profile, job);
+    const hybrid = compositeScoreHybrid(profile, job);
+
+    expect(legacy.total).toBeGreaterThan(0);
+    expect(hybrid.breakdown.lexical_keyword).toBeDefined();
   });
 });

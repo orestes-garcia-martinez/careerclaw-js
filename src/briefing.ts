@@ -25,12 +25,12 @@ import type {
   GapAnalysisResult,
 } from "./models.js";
 import { fetchAllJobs, type FetchResult } from "./sources.js";
-import { rankJobs } from "./matching/index.js";
+import { rankJobs, rankJobsHybrid } from "./matching/index.js";
 import { draftOutreach, buildTemplateCoverLetter } from "./drafting.js";
 import { enhanceDraft, generateCoverLetter, type EnhanceOptions } from "./llm-enhance.js";
 import { checkLicense, type CheckLicenseOptions } from "./license.js";
 import { TrackingRepository } from "./tracking.js";
-import { DEFAULT_TOP_K, FREE_TOP_K, PRO_TOP_K } from "./config.js";
+import { DEFAULT_TOP_K, FREE_TOP_K, PRO_TOP_K, SEMANTIC_MATCHING } from "./config.js";
 import { gapAnalysis } from "./gap.js";
 import {
   CAREERCLAW_FEATURES,
@@ -44,6 +44,7 @@ export interface BriefingOptions {
   fetchFn?: () => Promise<FetchResult>;
   repo?: TrackingRepository;
   resumeIntel?: ResumeIntelligence;
+  resumeText?: string;
   proKey?: string;
   enhanceFetchFn?: EnhanceOptions["fetchFn"];
   licenseFetchFn?: CheckLicenseOptions["fetchFn"];
@@ -60,6 +61,7 @@ export interface ContextBriefingOptions {
   fetchFn?: () => Promise<FetchResult>;
   repo?: TrackingRepository;
   resumeIntel?: ResumeIntelligence;
+  resumeText?: string;
   enhanceFetchFn?: EnhanceOptions["fetchFn"];
   /** 0-based indices into the matches array to generate cover letters for. */
   coverLetterMatchIndices?: number[];
@@ -114,6 +116,7 @@ async function runBriefingInternal(
     fetchFn?: () => Promise<FetchResult>;
     repo?: TrackingRepository;
     resumeIntel?: ResumeIntelligence;
+    resumeText?: string;
     enhanceFetchFn?: EnhanceOptions["fetchFn"];
     coverLetterMatchIndices?: number[];
     gapAnalysisMatchIndices?: number[];
@@ -126,6 +129,7 @@ async function runBriefingInternal(
     fetchFn = fetchAllJobs,
     repo = new TrackingRepository({ dryRun }),
     resumeIntel,
+    resumeText,
     enhanceFetchFn,
     coverLetterMatchIndices = [],
     gapAnalysisMatchIndices = [],
@@ -162,7 +166,15 @@ async function runBriefingInternal(
   const { jobs, counts: sourceCounts } = fetchResult;
 
   const rankStart = Date.now();
-  const matches: ScoredJob[] = jobs.length > 0 ? rankJobs(jobs, profile, clampedTopK) : [];
+  const matches: ScoredJob[] = jobs.length === 0
+    ? []
+    : SEMANTIC_MATCHING.ENABLED
+    ? await rankJobsHybrid(jobs, profile, {
+        limit: clampedTopK,
+        ...(resumeText !== undefined ? { resumeText } : {}),
+        ...(resumeIntel !== undefined ? { resumeIntel } : {}),
+      })
+    : rankJobs(jobs, profile, clampedTopK);
   const rankMs = Date.now() - rankStart;
 
   const draftStart = Date.now();
