@@ -6,6 +6,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.6.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.5.0...careerclaw-js-v1.6.0) (2026-04-01)
+
+
+### Features
+
+* **matching:** add hybrid semantic matching via skill taxonomy ([#46](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/46)) ([004283a](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/004283af86f27ad0b105cbb5fa4ee196d4f99fc2))
+
 ## [1.5.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.4.0...careerclaw-js-v1.5.0) (2026-03-30)
 
 
