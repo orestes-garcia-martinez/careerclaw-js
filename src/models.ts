@@ -244,6 +244,26 @@ export interface OutreachDraft {
 export type CoverLetterTone = "professional";
 
 /**
+ * Generation metadata for cover letters.
+ *
+ * Always populated — provides observability into whether the letter was
+ * LLM-generated or a template fallback, which provider was used, how many
+ * attempts were made, and why the fallback was triggered (if applicable).
+ */
+export interface CoverLetterMeta {
+  /** Provider that generated the body: "anthropic", "openai", or "template". */
+  provider: string;
+  /** LLM model used, or "deterministic" for template fallback. */
+  model: string;
+  /** Total LLM attempts across all chain candidates before success or fallback. */
+  attempts: number;
+  /** Null on LLM success; reason string when template fallback was triggered. */
+  fallback_reason: string | null;
+  /** Wall-clock time for the generation step (LLM call or template build), in ms. */
+  latency_ms: number;
+}
+
+/**
  * A tailored cover letter generated for a specific job match (Pro tier).
  *
  * When LLM generation fails, a deterministic template is used as fallback
@@ -264,6 +284,8 @@ export interface CoverLetter {
     top_signals: string[];
     top_gaps: string[];
   };
+  /** Generation metadata — always present in v1.6+. */
+  _meta?: CoverLetterMeta;
 }
 
 // ---------------------------------------------------------------------------

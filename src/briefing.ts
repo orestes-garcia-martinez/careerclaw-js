@@ -324,8 +324,10 @@ export async function generateCoverLetterForMatch(
   const { enhanceFetchFn, precomputedGap } = options;
   const gapResult = precomputedGap ?? gapAnalysis(resumeIntel, match.job);
 
+  const genStartMs = Date.now();
+
   // Attempt LLM generation; fall back to deterministic template
-  const llmBody = await generateCoverLetter(
+  const { result: llmResult, attempts: llmAttempts } = await generateCoverLetter(
     match.job,
     profile,
     resumeIntel,
@@ -333,10 +335,12 @@ export async function generateCoverLetterForMatch(
     enhanceFetchFn !== undefined ? { fetchFn: enhanceFetchFn } : {}
   );
 
-  if (llmBody) {
+  const genLatencyMs = Date.now() - genStartMs;
+
+  if (llmResult) {
     return {
       job_id: match.job.job_id,
-      body: llmBody,
+      body: llmResult.body,
       tone: "professional",
       is_template: false,
       match_score: gapResult.fit_score,
@@ -344,16 +348,34 @@ export async function generateCoverLetterForMatch(
         top_signals: gapResult.summary.top_signals.keywords,
         top_gaps: gapResult.summary.top_gaps.keywords,
       },
+      _meta: {
+        provider: llmResult.provider,
+        model: llmResult.model,
+        attempts: llmAttempts,
+        fallback_reason: null,
+        latency_ms: genLatencyMs,
+      },
     };
   }
 
   // LLM failed — deterministic template fallback
-  return buildTemplateCoverLetter(
+  const templateResult = buildTemplateCoverLetter(
     match.job,
     profile,
     match.matched_keywords,
     gapResult
   );
+
+  return {
+    ...templateResult,
+    _meta: {
+      provider: "template",
+      model: "deterministic",
+      attempts: llmAttempts,
+      fallback_reason: "llm_chain_exhausted",
+      latency_ms: genLatencyMs,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
