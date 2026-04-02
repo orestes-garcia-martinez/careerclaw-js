@@ -351,9 +351,9 @@ describe("generateCoverLetter — success path", () => {
       { fetchFn: mockFetchSuccess(VALID_COVER_LETTER_RESPONSE), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).not.toBeNull();
-    expect(typeof result).toBe("string");
-    expect(result!).toContain("Acme");
+    expect(result.result).not.toBeNull();
+    expect(typeof result.result?.body).toBe("string");
+    expect(result.result?.body).toContain("Acme");
   });
 
   it("strips word count annotations from LLM response", async () => {
@@ -366,8 +366,8 @@ describe("generateCoverLetter — success path", () => {
       { fetchFn: mockFetchSuccess(responseWithCount), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).not.toBeNull();
-    expect(result!).not.toContain("[287 words]");
+    expect(result.result).not.toBeNull();
+    expect(result.result?.body).not.toContain("[287 words]");
   });
 });
 
@@ -378,7 +378,7 @@ describe("generateCoverLetter — fallback", () => {
       { fetchFn: mockFetchFailure(), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).toBeNull();
+    expect(result.result).toBeNull();
   });
 
   it("returns null on HTTP 500", async () => {
@@ -387,7 +387,7 @@ describe("generateCoverLetter — fallback", () => {
       { fetchFn: mockFetchHttpError(500), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).toBeNull();
+    expect(result.result).toBeNull();
   });
 
   it("returns null when chain is empty", async () => {
@@ -397,7 +397,7 @@ describe("generateCoverLetter — fallback", () => {
       { fetchFn: noOpFetch as unknown as typeof fetch, _chainOverride: [] }
     );
 
-    expect(result).toBeNull();
+    expect(result.result).toBeNull();
     expect(noOpFetch).not.toHaveBeenCalled();
   });
 
@@ -407,7 +407,7 @@ describe("generateCoverLetter — fallback", () => {
       { fetchFn: mockFetchSuccess("Hi Acme."), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).toBeNull();
+    expect(result.result).toBeNull();
   });
 
   it("returns null when response does not mention the company", async () => {
@@ -418,7 +418,7 @@ describe("generateCoverLetter — fallback", () => {
       { fetchFn: mockFetchSuccess(offTopicResponse), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).toBeNull();
+    expect(result.result).toBeNull();
   });
 });
 

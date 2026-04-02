@@ -579,17 +579,45 @@ function parseCoverLetterResponse(
 }
 
 /**
+ * Structured result from a successful LLM cover letter generation.
+ * Includes the body plus provider metadata for observability.
+ *
+ * Note: `attempts` lives on CoverLetterGenerationOutcome (the outer wrapper),
+ * not here — it applies to both success and failure paths.
+ */
+export interface CoverLetterLLMResult {
+  body: string;
+  /** Provider that produced the successful response. */
+  provider: string;
+  /** Model that produced the successful response. */
+  model: string;
+}
+
+/**
+ * Outcome of an LLM cover letter generation attempt.
+ * Always includes `attempts` — even on failure — so the caller can
+ * populate CoverLetterMeta accurately without guessing.
+ */
+export interface CoverLetterGenerationOutcome {
+  /** The LLM-generated result, or null if all candidates exhausted. */
+  result: CoverLetterLLMResult | null;
+  /** Total LLM attempts across all chain candidates. */
+  attempts: number;
+}
+
+/**
  * Generate a tailored cover letter for a specific job match (Pro tier).
  *
  * Uses the same LLM provider chain and failover logic as `enhanceDraft()`.
- * Returns null on failure — caller is responsible for template fallback.
+ * Returns `{ result: null, attempts }` on failure — caller is responsible
+ * for template fallback. The `attempts` count is always accurate.
  *
  * @param job          - The job to write a cover letter for
  * @param profile      - User profile
  * @param resumeIntel  - Section-aware keyword signals
  * @param gapKeywords  - Keywords from the job not present in the profile
  * @param options      - Injectable fetch and chain override for testing
- * @returns Cover letter body string, or null on failure
+ * @returns Outcome with result + attempts count (attempts always populated)
  */
 export async function generateCoverLetter(
   job: NormalizedJob,
@@ -597,14 +625,15 @@ export async function generateCoverLetter(
   resumeIntel: ResumeIntelligence,
   gapKeywords: string[] = [],
   options: EnhanceOptions = {}
-): Promise<string | null> {
+): Promise<CoverLetterGenerationOutcome> {
   const fetchFn = options.fetchFn ?? fetch;
   const chain = options._chainOverride ?? buildChain();
   if (chain.length === 0) {
-    return null;
+    return { result: null, attempts: 0 };
   }
 
   let consecutiveFails = 0;
+  let totalAttempts = 0;
 
   for (const candidate of chain) {
     if (consecutiveFails >= LLM_CIRCUIT_BREAKER_FAILS) {
@@ -613,20 +642,60 @@ export async function generateCoverLetter(
 
     for (let attempt = 0; attempt < LLM_MAX_RETRIES; attempt++) {
       if (consecutiveFails >= LLM_CIRCUIT_BREAKER_FAILS) break;
+      totalAttempts++;
 
       try {
         const prompt = buildPrompt(job, profile, resumeIntel, gapKeywords, "cover_letter");
         const text = await callProvider(candidate, prompt, fetchFn);
         const body = parseCoverLetterResponse(text, job);
         if (body) {
-          return body;
+          return {
+            result: {
+              body,
+              provider: candidate.provider,
+              model: candidate.model,
+            },
+            attempts: totalAttempts,
+          };
         }
+        // Unparseable response — log and count as failure
+        console.warn(
+          `[careerclaw-llm] cover_letter parse failed`,
+          JSON.stringify({
+            provider: candidate.provider,
+            model: candidate.model,
+            attempt: attempt + 1,
+            reason: "unparseable_response",
+            bodyLength: text.length,
+            // parseCoverLetterResponse uses a 6-char prefix match for company sanity check
+            company: job.company,
+          }),
+        );
         consecutiveFails++;
-      } catch {
+      } catch (err) {
+        console.warn(
+          `[careerclaw-llm] cover_letter provider error`,
+          JSON.stringify({
+            provider: candidate.provider,
+            model: candidate.model,
+            attempt: attempt + 1,
+            error: err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200),
+          }),
+        );
         consecutiveFails++;
       }
     }
   }
 
-  return null;
+  console.warn(
+    `[careerclaw-llm] cover_letter all candidates exhausted`,
+    JSON.stringify({
+      totalAttempts,
+      consecutiveFails,
+      circuitBreakerLimit: LLM_CIRCUIT_BREAKER_FAILS,
+      job: { job_id: job.job_id, company: job.company },
+    }),
+  );
+
+  return { result: null, attempts: totalAttempts };
 }
