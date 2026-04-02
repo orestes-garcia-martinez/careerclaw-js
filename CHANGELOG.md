@@ -6,6 +6,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.7.1](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.7.0...careerclaw-js-v1.7.1) (2026-04-02)
+
+
+### Bug Fixes
+
+* update external file version ([#64](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/64)) ([7257dd4](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/7257dd4b649b338796191f1d5bb4e86f41091a12))
+
 ## [1.7.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.6.1...careerclaw-js-v1.7.0) (2026-04-02)
 
 
