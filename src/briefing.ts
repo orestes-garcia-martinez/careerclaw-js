@@ -296,6 +296,26 @@ export interface CoverLetterOptions {
   enhanceFetchFn?: EnhanceOptions["fetchFn"];
   /** Pre-computed gap analysis result. Skips re-computation if provided. */
   precomputedGap?: GapAnalysisResult;
+  /**
+   * Verified execution context from the calling platform.
+   *
+   * When provided, `generateCoverLetterForMatch` enforces the
+   * `TAILORED_COVER_LETTER` feature gate as a defense-in-depth check before
+   * attempting any LLM call. Callers (e.g. ClawOS worker) are expected to
+   * have already verified entitlements upstream — this is a secondary guard.
+   */
+  executionContext?: ClawOsExecutionContext;
+}
+
+export interface GapAnalysisOptions {
+  /**
+   * Verified execution context from the calling platform.
+   *
+   * Gap analysis is always algorithmic — this context is not used today but
+   * is accepted for consistency with `CoverLetterOptions` and to allow
+   * future tier-aware enhancements without a breaking API change.
+   */
+  executionContext?: ClawOsExecutionContext;
 }
 
 /**
@@ -321,8 +341,36 @@ export async function generateCoverLetterForMatch(
   resumeIntel: ResumeIntelligence,
   options: CoverLetterOptions = {}
 ): Promise<CoverLetter> {
-  const { enhanceFetchFn, precomputedGap } = options;
+  const { enhanceFetchFn, precomputedGap, executionContext } = options;
+  // Hoist gap computation — used by both the feature-gate early return and the
+  // normal LLM/template paths, so compute once regardless of which path runs.
   const gapResult = precomputedGap ?? gapAnalysis(resumeIntel, match.job);
+
+  // Defense-in-depth: if a verified context is provided and the
+  // TAILORED_COVER_LETTER feature is absent, return template immediately
+  // without attempting any LLM call. The primary gate lives upstream in the
+  // calling platform — this is a secondary guard.
+  if (
+    executionContext !== undefined &&
+    !hasCareerClawFeature(executionContext, CAREERCLAW_FEATURES.TAILORED_COVER_LETTER)
+  ) {
+    const templateResult = buildTemplateCoverLetter(
+      match.job,
+      profile,
+      match.matched_keywords,
+      gapResult
+    );
+    return {
+      ...templateResult,
+      _meta: {
+        provider: "template",
+        model: "deterministic",
+        attempts: 0,
+        fallback_reason: "feature_not_entitled",
+        latency_ms: 0,
+      },
+    };
+  }
 
   const genStartMs = Date.now();
 
@@ -399,6 +447,7 @@ export async function generateCoverLetterForMatch(
 export function generateGapAnalysisForMatch(
   match: ScoredJob,
   resumeIntel: ResumeIntelligence,
+  _options: GapAnalysisOptions = {}
 ): GapAnalysisReport {
   const result = gapAnalysis(resumeIntel, match.job);
   return {
