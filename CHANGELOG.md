@@ -6,6 +6,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.7.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.6.1...careerclaw-js-v1.7.0) (2026-04-02)
+
+
+### Features
+
+* **config:** update HN Who is Hiring thread ID to April 2026 ([#62](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/62)) ([53c34d0](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/53c34d00cc3e60c0cb37a26a88a7b845ab049104))
+
 ## [1.6.1](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.6.0...careerclaw-js-v1.6.1) (2026-04-02)
 
 
