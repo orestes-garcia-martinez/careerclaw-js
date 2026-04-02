@@ -1,6 +1,6 @@
 ---
 name: CareerClaw
-version: 1.7.1
+version: 1.8.0
 description: >
   Run a job search briefing, find job matches, draft outreach emails,
   or track job applications. Triggers on: daily briefing, job search,
