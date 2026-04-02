@@ -99,7 +99,7 @@ beforeEach(() => {
   mockGapAnalysis.mockReset();
   mockCheckLicense.mockResolvedValue({ valid: true, source: "api" });
   mockEnhanceDraft.mockResolvedValue(makeEnhancedDraft());
-  mockGenerateCoverLetter.mockResolvedValue(null);
+  mockGenerateCoverLetter.mockResolvedValue({ result: null, attempts: 0 });
   mockGapAnalysis.mockImplementation(
     (resumeIntel: ResumeIntelligence, job: NormalizedJob) => gapAnalysisRef.fn!(resumeIntel, job)
   );
@@ -334,7 +334,7 @@ const MOCK_COVER_LETTER_BODY = "I am writing to apply for the Senior TypeScript 
 
 describe("cover letter — index-based selection", () => {
   it("generates a cover letter for the requested match index (LLM success)", async () => {
-    mockGenerateCoverLetter.mockResolvedValue(MOCK_COVER_LETTER_BODY);
+    mockGenerateCoverLetter.mockResolvedValue({ result: { body: MOCK_COVER_LETTER_BODY, provider: "anthropic", model: "claude-haiku-4-5-20251001" }, attempts: 1 });
 
     const context = createClawOsExecutionContext({
       tier: "pro",
@@ -371,7 +371,7 @@ describe("cover letter — index-based selection", () => {
   });
 
   it("falls back to template cover letter when LLM fails", async () => {
-    mockGenerateCoverLetter.mockResolvedValue(null);
+    mockGenerateCoverLetter.mockResolvedValue({ result: null, attempts: 0 });
 
     const context = createClawOsExecutionContext({
       tier: "pro",
@@ -404,7 +404,7 @@ describe("cover letter — index-based selection", () => {
   });
 
   it("generates cover letters for multiple requested indices", async () => {
-    mockGenerateCoverLetter.mockResolvedValue(MOCK_COVER_LETTER_BODY);
+    mockGenerateCoverLetter.mockResolvedValue({ result: { body: MOCK_COVER_LETTER_BODY, provider: "anthropic", model: "claude-haiku-4-5-20251001" }, attempts: 1 });
 
     const context = createClawOsExecutionContext({
       tier: "pro",
@@ -465,7 +465,7 @@ describe("cover letter — index-based selection", () => {
   });
 
   it("silently skips out-of-bounds indices", async () => {
-    mockGenerateCoverLetter.mockResolvedValue(MOCK_COVER_LETTER_BODY);
+    mockGenerateCoverLetter.mockResolvedValue({ result: { body: MOCK_COVER_LETTER_BODY, provider: "anthropic", model: "claude-haiku-4-5-20251001" }, attempts: 1 });
 
     const context = createClawOsExecutionContext({
       tier: "pro",
@@ -688,7 +688,7 @@ describe("gap analysis — index-based selection", () => {
 
 describe("gap cache sharing", () => {
   it("cover letter uses precomputed gap from gap analysis when same index requested", async () => {
-    mockGenerateCoverLetter.mockResolvedValue(null); // Force template fallback so we can inspect match_score
+    mockGenerateCoverLetter.mockResolvedValue({ result: null, attempts: 0 }); // Force template fallback so we can inspect match_score
 
     const context = createClawOsExecutionContext({
       tier: "pro",

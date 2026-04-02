@@ -86,8 +86,9 @@ describe("buildTemplateCoverLetter — gap keyword filtering (P1b)", () => {
     );
 
     expect(result.body).not.toContain("builds");
-    expect(result.body).not.toContain("team");
-    expect(result.body).not.toContain("experience");
+    // "team" and "experience" appear in standard template prose — check only the gap clause
+    expect(result.body).not.toContain("does not yet include team");
+    expect(result.body).not.toContain("does not yet include experience");
     // kubernetes should survive
     expect(result.body).toContain("kubernetes");
   });
