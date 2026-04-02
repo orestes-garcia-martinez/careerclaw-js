@@ -6,6 +6,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.7.1...careerclaw-js-v1.8.0) (2026-04-02)
+
+
+### Features
+
+* **briefing:** add optional executionContext to standalone cover letter and gap analysis functions ([#66](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/66)) ([923d2ea](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/923d2ea0a4aa89ba07df37f852e2cc0de1ec9a72))
+
 ## [1.7.1](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.7.0...careerclaw-js-v1.7.1) (2026-04-02)
 
 
