@@ -6,6 +6,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.6.1](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.6.0...careerclaw-js-v1.6.1) (2026-04-02)
+
+
+### Bug Fixes
+
+* **cover-letter:** add template quality guard and LLM observability ([#59](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/59)) ([aadc5ff](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/aadc5ff7ea7b47aeeebca6d31a9c718fcf2aaa33))
+
 ## [1.6.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.5.0...careerclaw-js-v1.6.0) (2026-04-01)
 
 
