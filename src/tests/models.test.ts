@@ -9,10 +9,8 @@ import {
 	utcNow,
 	emptyProfile,
 	type NormalizedJob,
-	type UserProfile,
 	type TrackingEntry,
 	type BriefingRun,
-	type ScoredJob,
 } from "../models.js";
 
 describe("utcNow", () => {
@@ -129,7 +127,7 @@ describe("BriefingRun shape", () => {
 				draft_ms: 80,
 				persist_ms: 20,
 			},
-			version: "1.8.0",
+			version: "1.9.0",
 		};
 		expect(run.jobs_matched).toBe(3);
 		expect(run.dry_run).toBe(false);
