@@ -27,7 +27,12 @@ import type {
 import { fetchAllJobs, type FetchResult } from "./sources.js";
 import { rankJobs, rankJobsHybrid } from "./matching/index.js";
 import { draftOutreach, buildTemplateCoverLetter } from "./drafting.js";
-import { enhanceDraft, generateCoverLetter, type EnhanceOptions } from "./llm-enhance.js";
+import {
+  enhanceDraft,
+  generateCoverLetter,
+  enhanceGapAnalysis,
+  type EnhanceOptions,
+} from "./llm-enhance.js";
 import { checkLicense, type CheckLicenseOptions } from "./license.js";
 import { TrackingRepository } from "./tracking.js";
 import { DEFAULT_TOP_K, FREE_TOP_K, PRO_TOP_K, SEMANTIC_MATCHING } from "./config.js";
@@ -214,7 +219,10 @@ async function runBriefingInternal(
     for (const idx of gapAnalysisMatchIndices) {
       if (idx < 0 || idx >= matches.length) continue;
       const match = matches[idx]!;
-      const report = generateGapAnalysisForMatch(match, resumeIntel);
+      const report = await generateGapAnalysisForMatch(match, resumeIntel, {
+        enhanceFetchFn,
+        ...(executionMode.kind === "clawos" ? { executionContext: executionMode.context } : {}),
+      });
       gapAnalyses.push(report);
       gapCache.set(idx, report.analysis);
     }
@@ -308,12 +316,14 @@ export interface CoverLetterOptions {
 }
 
 export interface GapAnalysisOptions {
+  /** Injectable fetch for LLM calls — defaults to global fetch. */
+  enhanceFetchFn?: EnhanceOptions["fetchFn"];
   /**
    * Verified execution context from the calling platform.
    *
-   * Gap analysis is always algorithmic — this context is not used today but
-   * is accepted for consistency with `CoverLetterOptions` and to allow
-   * future tier-aware enhancements without a breaking API change.
+   * When provided, `generateGapAnalysisForMatch` enforces the
+   * `LLM_GAP_ANALYSIS` feature gate before attempting any LLM enhancement.
+   * The algorithmic `analysis` result is always returned either way.
    */
   executionContext?: ClawOsExecutionContext;
 }
@@ -438,23 +448,78 @@ export async function generateCoverLetterForMatch(
  *   - Standalone by ClawOS when a user picks a specific match
  *   - From the CLI with --gap-analysis <index>
  *
- * No LLM calls — pure computation. Returns a GapAnalysisReport with
- * job metadata for UI display symmetry with CoverLetter.
+ * Returns the algorithmic gap analysis plus optional LLM-generated
+ * qualitative enhancement when the caller is entitled.
  *
  * The returned `analysis` field can be passed as `precomputedGap` to
  * `generateCoverLetterForMatch()` to avoid redundant computation.
  */
-export function generateGapAnalysisForMatch(
+export async function generateGapAnalysisForMatch(
   match: ScoredJob,
   resumeIntel: ResumeIntelligence,
-  _options: GapAnalysisOptions = {}
-): GapAnalysisReport {
+  options: GapAnalysisOptions = {}
+): Promise<GapAnalysisReport> {
+  const { executionContext, enhanceFetchFn } = options;
   const result = gapAnalysis(resumeIntel, match.job);
+
+  if (
+    executionContext === undefined ||
+    !hasCareerClawFeature(executionContext, CAREERCLAW_FEATURES.LLM_GAP_ANALYSIS)
+  ) {
+    return {
+      job_id: match.job.job_id,
+      title: match.job.title,
+      company: match.job.company,
+      analysis: result,
+      _meta: {
+        provider: "none",
+        model: "none",
+        attempts: 0,
+        fallback_reason:
+          executionContext === undefined ? "execution_context_missing" : "feature_not_entitled",
+        latency_ms: 0,
+      },
+    };
+  }
+
+  const enhancementStartMs = Date.now();
+  const { result: enhancementResult, attempts } = await enhanceGapAnalysis(
+    result,
+    match.job,
+    resumeIntel,
+    enhanceFetchFn !== undefined ? { fetchFn: enhanceFetchFn } : {}
+  );
+  const enhancementLatencyMs = Date.now() - enhancementStartMs;
+
+  if (!enhancementResult) {
+    return {
+      job_id: match.job.job_id,
+      title: match.job.title,
+      company: match.job.company,
+      analysis: result,
+      _meta: {
+        provider: "none",
+        model: "none",
+        attempts,
+        fallback_reason: "llm_chain_exhausted",
+        latency_ms: enhancementLatencyMs,
+      },
+    };
+  }
+
   return {
     job_id: match.job.job_id,
     title: match.job.title,
     company: match.job.company,
     analysis: result,
+    enhancement: enhancementResult.enhancement,
+    _meta: {
+      provider: enhancementResult.provider,
+      model: enhancementResult.model,
+      attempts,
+      fallback_reason: null,
+      latency_ms: enhancementLatencyMs,
+    },
   };
 }
 

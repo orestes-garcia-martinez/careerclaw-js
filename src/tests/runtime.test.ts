@@ -3,10 +3,18 @@ import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
-const { mockCheckLicense, mockEnhanceDraft, mockGenerateCoverLetter, mockGapAnalysis, gapAnalysisRef } = vi.hoisted(() => ({
+const {
+  mockCheckLicense,
+  mockEnhanceDraft,
+  mockGenerateCoverLetter,
+  mockEnhanceGapAnalysis,
+  mockGapAnalysis,
+  gapAnalysisRef,
+} = vi.hoisted(() => ({
   mockCheckLicense: vi.fn(),
   mockEnhanceDraft: vi.fn(),
   mockGenerateCoverLetter: vi.fn(),
+  mockEnhanceGapAnalysis: vi.fn(),
   mockGapAnalysis: vi.fn(),
   gapAnalysisRef: { fn: null as null | typeof import("../gap.js").gapAnalysis },
 }));
@@ -18,7 +26,12 @@ vi.mock("../license.js", async () => {
 
 vi.mock("../llm-enhance.js", async () => {
   const actual = await vi.importActual<typeof import("../llm-enhance.js")>("../llm-enhance.js");
-  return { ...actual, enhanceDraft: mockEnhanceDraft, generateCoverLetter: mockGenerateCoverLetter };
+  return {
+    ...actual,
+    enhanceDraft: mockEnhanceDraft,
+    generateCoverLetter: mockGenerateCoverLetter,
+    enhanceGapAnalysis: mockEnhanceGapAnalysis,
+  };
 });
 
 vi.mock("../gap.js", async () => {
@@ -96,10 +109,12 @@ beforeEach(() => {
   mockCheckLicense.mockReset();
   mockEnhanceDraft.mockReset();
   mockGenerateCoverLetter.mockReset();
+  mockEnhanceGapAnalysis.mockReset();
   mockGapAnalysis.mockReset();
   mockCheckLicense.mockResolvedValue({ valid: true, source: "api" });
   mockEnhanceDraft.mockResolvedValue(makeEnhancedDraft());
   mockGenerateCoverLetter.mockResolvedValue({ result: null, attempts: 0 });
+  mockEnhanceGapAnalysis.mockResolvedValue({ result: null, attempts: 0 });
   mockGapAnalysis.mockImplementation(
     (resumeIntel: ResumeIntelligence, job: NormalizedJob) => gapAnalysisRef.fn!(resumeIntel, job)
   );
@@ -577,6 +592,58 @@ describe("gap analysis — index-based selection", () => {
     expect(typeof result.gap_analyses[0]!.analysis.fit_score).toBe("number");
     expect(result.gap_analyses[0]!.analysis.summary).toHaveProperty("top_signals");
     expect(result.gap_analyses[0]!.analysis.summary).toHaveProperty("top_gaps");
+    expect(result.gap_analyses[0]!._meta?.fallback_reason).toBe("feature_not_entitled");
+  });
+
+  it("adds qualitative enhancement when LLM_GAP_ANALYSIS is entitled", async () => {
+    mockEnhanceGapAnalysis.mockResolvedValue({
+      result: {
+        enhancement: {
+          why_gaps_matter: ["Acme needs production API ownership."],
+          bridgeable_gaps: [
+            {
+              gap: "graphql",
+              reason: "Adjacent API design experience exists.",
+              how_to_position: "Position schema ownership as an extension of TypeScript backend work.",
+            },
+          ],
+          narrative_recommendations: ["Lead with API and frontend delivery outcomes."],
+          apply_now_recommendation: "apply_with_positioning",
+        },
+        provider: "anthropic",
+        model: "claude-haiku-4-5-20251001",
+      },
+      attempts: 1,
+    });
+
+    const context = createClawOsExecutionContext({
+      tier: "pro",
+      features: [
+        CAREERCLAW_FEATURES.RESUME_GAP_ANALYSIS,
+        CAREERCLAW_FEATURES.LLM_GAP_ANALYSIS,
+      ],
+    });
+
+    const result = await runCareerClawWithContext(
+      {
+        profile: makeProfile(),
+        resumeText: "TypeScript React Node AWS",
+        topK: 1,
+        dryRun: true,
+        gapAnalysisMatchIndices: [0],
+      },
+      context,
+      {
+        fetchFn: stubFetch([makeJob()]),
+        repo: makeTmpRepo(true),
+      }
+    );
+
+    expect(mockEnhanceGapAnalysis).toHaveBeenCalledTimes(1);
+    expect(result.gap_analyses[0]!.enhancement?.apply_now_recommendation).toBe(
+      "apply_with_positioning"
+    );
+    expect(result.gap_analyses[0]!._meta?.provider).toBe("anthropic");
   });
 
   it("generates gap analyses for multiple requested indices", async () => {

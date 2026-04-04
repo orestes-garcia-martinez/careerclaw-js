@@ -13,6 +13,7 @@
 
 export const CAREERCLAW_FEATURES = {
   LLM_OUTREACH_DRAFT: "careerclaw.llm_outreach_draft",
+  LLM_GAP_ANALYSIS: "careerclaw.llm_gap_analysis",
   TAILORED_COVER_LETTER: "careerclaw.tailored_cover_letter",
   RESUME_GAP_ANALYSIS: "careerclaw.resume_gap_analysis",
   TOPK_EXTENDED: "careerclaw.topk_extended",
@@ -41,6 +42,7 @@ export type CareerClawExecutionContext =
 
 export const STANDALONE_PRO_FEATURES: readonly CareerClawFeatureKey[] = [
   CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT,
+  CAREERCLAW_FEATURES.LLM_GAP_ANALYSIS,
   CAREERCLAW_FEATURES.RESUME_GAP_ANALYSIS,
 ];
 
