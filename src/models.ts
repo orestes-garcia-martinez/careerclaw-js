@@ -226,6 +226,27 @@ export interface GapAnalysisReport {
   title: string;
   company: string;
   analysis: GapAnalysisResult;
+  enhancement?: GapAnalysisEnhancement;
+  _meta?: GapAnalysisMeta;
+}
+
+export interface GapAnalysisEnhancement {
+  why_gaps_matter: string[];
+  bridgeable_gaps: Array<{
+    gap: string;
+    reason: string;
+    how_to_position: string;
+  }>;
+  narrative_recommendations: string[];
+  apply_now_recommendation: "apply_now" | "apply_with_positioning" | "close_gaps_first";
+}
+
+export interface GapAnalysisMeta {
+  provider: string;
+  model: string;
+  attempts: number;
+  fallback_reason: string | null;
+  latency_ms: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -345,4 +366,3 @@ export interface BriefingResult {
   /** Whether this was a dry run (no files written). */
   dry_run: boolean;
 }
-
