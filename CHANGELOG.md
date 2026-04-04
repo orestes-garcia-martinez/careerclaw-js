@@ -6,6 +6,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.9.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.8.0...careerclaw-js-v1.9.0) (2026-04-04)
+
+
+### Features
+
+* add llm gap analysis enhancement ([#68](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/68)) ([987d64b](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/987d64b2de45b6481179c1cb57a89e15a615ceff))
+
+
+### CI/CD
+
+* bump actions/checkout from 4 to 6 ([#48](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/48)) ([cc4aff6](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/cc4aff6b9f01e54d048e35b02f27a3c9687335f5))
+* bump actions/create-github-app-token from 1 to 3 ([#49](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/49)) ([542016b](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/542016b2c01ff5c521cc23679d2341f3f30e0043))
+* bump actions/setup-node from 4 to 6 ([#50](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/50)) ([ded690a](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/ded690a80bb52b3246fe2d79eb52b2c72bd6a787))
+
 ## [1.8.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.7.1...careerclaw-js-v1.8.0) (2026-04-02)
 
 
