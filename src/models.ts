@@ -226,6 +226,27 @@ export interface GapAnalysisReport {
   title: string;
   company: string;
   analysis: GapAnalysisResult;
+  enhancement?: GapAnalysisEnhancement;
+  _meta?: GapAnalysisMeta;
+}
+
+export interface GapAnalysisEnhancement {
+  why_gaps_matter: string[];
+  bridgeable_gaps: Array<{
+    gap: string;
+    reason: string;
+    how_to_position: string;
+  }>;
+  narrative_recommendations: string[];
+  apply_now_recommendation: "apply_now" | "apply_with_positioning" | "close_gaps_first";
+}
+
+export interface GapAnalysisMeta {
+  provider: string;
+  model: string;
+  attempts: number;
+  fallback_reason: string | null;
+  latency_ms: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +263,26 @@ export interface OutreachDraft {
 
 /** Tone presets for cover letter generation. */
 export type CoverLetterTone = "professional";
+
+/**
+ * Generation metadata for cover letters.
+ *
+ * Always populated — provides observability into whether the letter was
+ * LLM-generated or a template fallback, which provider was used, how many
+ * attempts were made, and why the fallback was triggered (if applicable).
+ */
+export interface CoverLetterMeta {
+  /** Provider that generated the body: "anthropic", "openai", or "template". */
+  provider: string;
+  /** LLM model used, or "deterministic" for template fallback. */
+  model: string;
+  /** Total LLM attempts across all chain candidates before success or fallback. */
+  attempts: number;
+  /** Null on LLM success; reason string when template fallback was triggered. */
+  fallback_reason: string | null;
+  /** Wall-clock time for the generation step (LLM call or template build), in ms. */
+  latency_ms: number;
+}
 
 /**
  * A tailored cover letter generated for a specific job match (Pro tier).
@@ -264,6 +305,8 @@ export interface CoverLetter {
     top_signals: string[];
     top_gaps: string[];
   };
+  /** Generation metadata — always present in v1.6+. */
+  _meta?: CoverLetterMeta;
 }
 
 // ---------------------------------------------------------------------------
@@ -323,4 +366,3 @@ export interface BriefingResult {
   /** Whether this was a dry run (no files written). */
   dry_run: boolean;
 }
-

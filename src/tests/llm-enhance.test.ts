@@ -7,9 +7,15 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { enhanceDraft, generateCoverLetter } from "../llm-enhance.js";
+import { enhanceDraft, enhanceGapAnalysis, generateCoverLetter } from "../llm-enhance.js";
 import type { ChainCandidate } from "../llm-enhance.js";
-import type { NormalizedJob, UserProfile, OutreachDraft, ResumeIntelligence } from "../models.js";
+import type {
+  GapAnalysisResult,
+  NormalizedJob,
+  OutreachDraft,
+  ResumeIntelligence,
+  UserProfile,
+} from "../models.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -67,6 +73,32 @@ function makeDraft(overrides: Partial<OutreachDraft> = {}): OutreachDraft {
     subject: "Interest in Senior TypeScript Engineer at Acme",
     body: "Hi Acme team,\n\nI am interested in this role.\n\nBest regards,\n[Your Name]",
     llm_enhanced: false,
+    ...overrides,
+  };
+}
+
+function makeGapAnalysisResult(overrides: Partial<GapAnalysisResult> = {}): GapAnalysisResult {
+  return {
+    fit_score: 0.71,
+    fit_score_unweighted: 0.67,
+    signals: {
+      keywords: ["typescript", "react", "node"],
+      phrases: ["full-stack development"],
+    },
+    gaps: {
+      keywords: ["graphql", "kubernetes"],
+      phrases: ["distributed systems"],
+    },
+    summary: {
+      top_signals: {
+        keywords: ["typescript", "react"],
+        phrases: ["full-stack development"],
+      },
+      top_gaps: {
+        keywords: ["graphql", "kubernetes"],
+        phrases: ["distributed systems"],
+      },
+    },
     ...overrides,
   };
 }
@@ -351,9 +383,9 @@ describe("generateCoverLetter — success path", () => {
       { fetchFn: mockFetchSuccess(VALID_COVER_LETTER_RESPONSE), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).not.toBeNull();
-    expect(typeof result).toBe("string");
-    expect(result!).toContain("Acme");
+    expect(result.result).not.toBeNull();
+    expect(typeof result.result?.body).toBe("string");
+    expect(result.result?.body).toContain("Acme");
   });
 
   it("strips word count annotations from LLM response", async () => {
@@ -366,8 +398,8 @@ describe("generateCoverLetter — success path", () => {
       { fetchFn: mockFetchSuccess(responseWithCount), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).not.toBeNull();
-    expect(result!).not.toContain("[287 words]");
+    expect(result.result).not.toBeNull();
+    expect(result.result?.body).not.toContain("[287 words]");
   });
 });
 
@@ -378,7 +410,7 @@ describe("generateCoverLetter — fallback", () => {
       { fetchFn: mockFetchFailure(), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).toBeNull();
+    expect(result.result).toBeNull();
   });
 
   it("returns null on HTTP 500", async () => {
@@ -387,7 +419,7 @@ describe("generateCoverLetter — fallback", () => {
       { fetchFn: mockFetchHttpError(500), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).toBeNull();
+    expect(result.result).toBeNull();
   });
 
   it("returns null when chain is empty", async () => {
@@ -397,7 +429,7 @@ describe("generateCoverLetter — fallback", () => {
       { fetchFn: noOpFetch as unknown as typeof fetch, _chainOverride: [] }
     );
 
-    expect(result).toBeNull();
+    expect(result.result).toBeNull();
     expect(noOpFetch).not.toHaveBeenCalled();
   });
 
@@ -407,7 +439,7 @@ describe("generateCoverLetter — fallback", () => {
       { fetchFn: mockFetchSuccess("Hi Acme."), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).toBeNull();
+    expect(result.result).toBeNull();
   });
 
   it("returns null when response does not mention the company", async () => {
@@ -418,7 +450,7 @@ describe("generateCoverLetter — fallback", () => {
       { fetchFn: mockFetchSuccess(offTopicResponse), _chainOverride: ANTHROPIC_CHAIN }
     );
 
-    expect(result).toBeNull();
+    expect(result.result).toBeNull();
   });
 });
 
@@ -445,5 +477,67 @@ describe("generateCoverLetter — privacy", () => {
     );
 
     expect(capturedBody).not.toContain(rawResumeText);
+  });
+});
+
+const VALID_GAP_ANALYSIS_RESPONSE = `{
+  "why_gaps_matter": [
+    "GraphQL matters because the role pairs API evolution with frontend delivery at Acme.",
+    "Kubernetes matters because the team likely expects engineers to ship and operate services."
+  ],
+  "bridgeable_gaps": [
+    {
+      "gap": "GraphQL",
+      "reason": "The candidate already has adjacent TypeScript API experience.",
+      "how_to_position": "Frame GraphQL as a natural extension of existing backend and schema design work."
+    }
+  ],
+  "narrative_recommendations": [
+    "Lead with TypeScript and React depth before addressing platform gaps.",
+    "Position Kubernetes as an active upskilling area supported by adjacent deployment experience."
+  ],
+  "apply_now_recommendation": "apply_with_positioning"
+}`;
+
+describe("enhanceGapAnalysis — success path", () => {
+  it("returns structured qualitative enhancement on success", async () => {
+    const result = await enhanceGapAnalysis(
+      makeGapAnalysisResult(),
+      makeJob(),
+      makeResumeIntel(),
+      { fetchFn: mockFetchSuccess(VALID_GAP_ANALYSIS_RESPONSE), _chainOverride: ANTHROPIC_CHAIN }
+    );
+
+    expect(result.result).not.toBeNull();
+    expect(result.result?.provider).toBe("anthropic");
+    expect(result.result?.enhancement.apply_now_recommendation).toBe("apply_with_positioning");
+    expect(result.result?.enhancement.why_gaps_matter.length).toBeGreaterThan(0);
+  });
+});
+
+describe("enhanceGapAnalysis — fallback", () => {
+  it("returns null when the response is not valid JSON", async () => {
+    const result = await enhanceGapAnalysis(
+      makeGapAnalysisResult(),
+      makeJob(),
+      makeResumeIntel(),
+      { fetchFn: mockFetchSuccess("not json"), _chainOverride: ANTHROPIC_CHAIN }
+    );
+
+    expect(result.result).toBeNull();
+    expect(result.attempts).toBeGreaterThan(0);
+  });
+
+  it("returns null when chain is empty", async () => {
+    const noOpFetch = vi.fn();
+    const result = await enhanceGapAnalysis(
+      makeGapAnalysisResult(),
+      makeJob(),
+      makeResumeIntel(),
+      { fetchFn: noOpFetch as unknown as typeof fetch, _chainOverride: [] }
+    );
+
+    expect(result.result).toBeNull();
+    expect(noOpFetch).not.toHaveBeenCalled();
   });
 });

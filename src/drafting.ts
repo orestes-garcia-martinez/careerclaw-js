@@ -140,6 +140,49 @@ function buildHighlightsClause(
 // ---------------------------------------------------------------------------
 
 /**
+ * Words that appear as gap keywords but produce nonsensical prose when
+ * inserted into "While my background does not yet include X."
+ * These are common job-posting tokens that survive stopword filtering but
+ * are not recognisable as skills, technologies, or domain concepts.
+ *
+ * TODO: Replace with a POS-tag or taxonomy-aware filter when the skill
+ * taxonomy (core/skill-taxonomy.ts) has sufficient coverage. The static
+ * blocklist is a pragmatic v1 solution that will need maintenance as
+ * new domains are added.
+ */
+const GAP_KEYWORD_PROSE_BLOCKLIST = new Set([
+  "team", "teams", "role", "roles", "work", "working", "build", "builds",
+  "building", "level", "levels", "company", "product", "products",
+  "project", "projects", "experience", "years", "strong", "ability",
+  "looking", "join", "help", "ideal", "create", "support", "lead",
+  "manage", "deliver", "drive", "grow", "scale", "ensure", "maintain",
+  "develop", "design", "implement", "understand", "collaborate",
+]);
+
+/**
+ * Filter gap keywords to only those that read naturally as skills or
+ * domain concepts in template prose.
+ *
+ * Rules:
+ *   - Must be at least 2 characters (filters single-char noise tokens).
+ *     Note: 2-char tokens like "go" (Go language) pass through intentionally.
+ *   - Must not match the company name (case-insensitive)
+ *   - Must not be in the prose blocklist
+ */
+function filterGapKeywordsForProse(
+  keywords: string[],
+  companyName: string,
+): string[] {
+  const companyLower = companyName.toLowerCase();
+  return keywords.filter((kw) => {
+    if (kw.length < 2) return false;
+    if (kw.toLowerCase() === companyLower) return false;
+    if (GAP_KEYWORD_PROSE_BLOCKLIST.has(kw.toLowerCase())) return false;
+    return true;
+  });
+}
+
+/**
  * Generate a deterministic cover letter when LLM generation fails.
  *
  * Uses gap analysis results to add keyword specificity. The output is
@@ -164,10 +207,16 @@ export function buildTemplateCoverLetter(
     ? formatList(highlights)
     : "relevant technical skills";
 
+  // Filter gap keywords to only those that read naturally as skills in prose.
+  // Prevents nonsensical output like "areas such as level and builds".
+  const usableGapKeywords = filterGapKeywordsForProse(
+    gapResult.summary.top_gaps.keywords.slice(0, 4),
+    job.company,
+  );
+
   const gapAcknowledgement =
-    gapResult.summary.top_gaps.keywords.length > 0
-      ? ` While I am continuing to deepen my expertise in areas such as ` +
-        `${formatList(gapResult.summary.top_gaps.keywords.slice(0, 2))}, ` +
+    usableGapKeywords.length > 0
+      ? ` While my background does not yet include ${formatList(usableGapKeywords.slice(0, 2))}, ` +
         `I am motivated to grow quickly in these areas and bring a strong ` +
         `foundation to build on.`
       : "";

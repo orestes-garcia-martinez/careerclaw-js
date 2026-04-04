@@ -47,7 +47,7 @@ export const HTTP_TIMEOUT_MS = 15_000;
  * Identifies the tool and provides a contact point per robots.txt convention.
  */
 export const USER_AGENT =
-	"careerclaw-js/1.5.0 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
+	"careerclaw-js/1.8.0 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
 
 // ---------------------------------------------------------------------------
 // Job sources
@@ -69,7 +69,7 @@ export const REMOTEOK_RSS_URL = "https://remoteok.com/remote-jobs.rss";
  * and copy the numeric ID from the URL (e.g. https://news.ycombinator.com/item?id=43354977).
  */
 export const HN_WHO_IS_HIRING_ID: number = parseInt(
-	process.env["HN_WHO_IS_HIRING_ID"] ?? "47219668",
+	process.env["HN_WHO_IS_HIRING_ID"] ?? "47601859",
 	10
 );
 

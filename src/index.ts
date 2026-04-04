@@ -7,3 +7,4 @@ export * from "./license.js";
 export * from "./tracking.js";
 export * from "./sources.js";
 export * from "./gap.js";
+export * from "./llm-enhance.js";

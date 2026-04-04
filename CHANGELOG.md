@@ -6,6 +6,41 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.7.1...careerclaw-js-v1.8.0) (2026-04-02)
+
+
+### Features
+
+* **briefing:** add optional executionContext to standalone cover letter and gap analysis functions ([#66](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/66)) ([923d2ea](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/923d2ea0a4aa89ba07df37f852e2cc0de1ec9a72))
+
+## [1.7.1](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.7.0...careerclaw-js-v1.7.1) (2026-04-02)
+
+
+### Bug Fixes
+
+* update external file version ([#64](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/64)) ([7257dd4](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/7257dd4b649b338796191f1d5bb4e86f41091a12))
+
+## [1.7.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.6.1...careerclaw-js-v1.7.0) (2026-04-02)
+
+
+### Features
+
+* **config:** update HN Who is Hiring thread ID to April 2026 ([#62](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/62)) ([53c34d0](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/53c34d00cc3e60c0cb37a26a88a7b845ab049104))
+
+## [1.6.1](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.6.0...careerclaw-js-v1.6.1) (2026-04-02)
+
+
+### Bug Fixes
+
+* **cover-letter:** add template quality guard and LLM observability ([#59](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/59)) ([aadc5ff](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/aadc5ff7ea7b47aeeebca6d31a9c718fcf2aaa33))
+
+## [1.6.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.5.0...careerclaw-js-v1.6.0) (2026-04-01)
+
+
+### Features
+
+* **matching:** add hybrid semantic matching via skill taxonomy ([#46](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/46)) ([004283a](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/004283af86f27ad0b105cbb5fa4ee196d4f99fc2))
+
 ## [1.5.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.4.0...careerclaw-js-v1.5.0) (2026-03-30)
 
 

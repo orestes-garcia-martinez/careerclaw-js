@@ -16,7 +16,14 @@
  *   - Testable: the fetch function is injectable so tests run fully offline.
  */
 
-import type { NormalizedJob, UserProfile, OutreachDraft, ResumeIntelligence } from "./models.js";
+import type {
+  GapAnalysisEnhancement,
+  GapAnalysisResult,
+  NormalizedJob,
+  OutreachDraft,
+  ResumeIntelligence,
+  UserProfile,
+} from "./models.js";
 import {
   LLM_ANTHROPIC_KEY,
   LLM_OPENAI_KEY,
@@ -56,13 +63,13 @@ export interface EnhanceOptions {
    *
    * "draft"        — (default, Free tier) Short outreach email, max 250 words.
    *                  Produced by the deterministic template on Free; LLM-enhanced on Pro.
-   * "cover_letter" — (Pro only, future) Tailored cover letter, max 300 words.
+   * "cover_letter" — Tailored cover letter, max 300 words.
    *                  Every sentence connects the candidate to this specific role.
    *                  Zero generic filler. Requires active Pro license.
-   *
-   * TODO: Phase X — implement cover_letter mode. Stub is in buildPrompt().
+   * "gap_analysis" — Semantic enhancement of an already-computed algorithmic
+   *                  gap analysis. Returns qualitative insights only.
    */
-  mode?: "draft" | "cover_letter";
+  mode?: "draft" | "cover_letter" | "gap_analysis";
 }
 
 // ---------------------------------------------------------------------------
@@ -209,14 +216,14 @@ Banned phrases — never use these under any circumstances:
  * candidate's strength summary, and gap_keywords for strategic gap framing.
  *
  * mode "draft"        — outreach email, max 250 words (Free tier baseline, LLM-enhanced on Pro)
- * mode "cover_letter" — tailored cover letter, max 300 words, zero filler (Pro only, future)
+ * mode "cover_letter" — tailored cover letter, max 300 words, zero filler
  */
 function buildPrompt(
   job: NormalizedJob,
   profile: UserProfile,
   resumeIntel: ResumeIntelligence,
   gapKeywords: string[] = [],
-  mode: "draft" | "cover_letter" = "draft"
+  mode: EnhanceOptions["mode"] = "draft"
 ): string {
   const experienceClause =
     profile.experience_years != null
@@ -306,6 +313,52 @@ function buildPrompt(
     `- Plain text only — no markdown, no bullet points`,
     `- Do NOT invent specific projects, metrics, or company details`,
     `- Do NOT include any placeholder other than [Your Name]`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildGapAnalysisPrompt(
+  job: NormalizedJob,
+  resumeIntel: ResumeIntelligence,
+  algorithmicResult: GapAnalysisResult
+): string {
+  const strengths = resumeIntel.impact_signals.slice(0, 10).join(", ") || "software engineering";
+  const topPhrases = resumeIntel.phrase_stream.slice(0, 6).join(", ");
+  const topSignals = algorithmicResult.summary.top_signals.keywords.slice(0, 5).join(", ");
+  const topGaps = algorithmicResult.summary.top_gaps.keywords.slice(0, 5).join(", ");
+
+  return [
+    `You are reviewing an already-computed resume gap analysis for a specific role.`,
+    ``,
+    `Role: ${job.title}`,
+    `Company: ${job.company}`,
+    `Candidate's strongest signals: ${strengths}`,
+    topPhrases ? `Candidate's notable competency areas: ${topPhrases}` : "",
+    `Algorithmic top signals: ${topSignals || "none provided"}`,
+    `Algorithmic top gaps: ${topGaps || "none provided"}`,
+    ``,
+    `Important constraints:`,
+    `- Do not invent, restate, or alter numeric scores`,
+    `- Do not recommend dishonesty, exaggeration, or fabricated experience`,
+    `- Focus on semantic interpretation: why the gaps matter, which gaps are bridgeable, and how to position the candidate honestly`,
+    ``,
+    `Return valid JSON only with this exact schema:`,
+    `{`,
+    `  "why_gaps_matter": ["string", "string"],`,
+    `  "bridgeable_gaps": [`,
+    `    { "gap": "string", "reason": "string", "how_to_position": "string" }`,
+    `  ],`,
+    `  "narrative_recommendations": ["string", "string"],`,
+    `  "apply_now_recommendation": "apply_now" | "apply_with_positioning" | "close_gaps_first"`,
+    `}`,
+    ``,
+    `Requirements:`,
+    `- why_gaps_matter: 2-4 concise bullets describing why the missing skills matter in this specific role`,
+    `- bridgeable_gaps: up to 3 entries, only for gaps that can be framed credibly from adjacent experience`,
+    `- narrative_recommendations: 2-4 concise bullets on how to frame strengths vs gaps in resume, outreach, or interviews`,
+    `- apply_now_recommendation: choose exactly one enum value`,
+    `- Keep every string specific to the role and company; no filler`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -549,6 +602,80 @@ function parseResponse(
   return { subject, body };
 }
 
+function extractLikelyJson(text: string): string | null {
+  const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fencedMatch?.[1] ?? text;
+  const firstBrace = candidate.indexOf("{");
+  const lastBrace = candidate.lastIndexOf("}");
+
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+    return null;
+  }
+
+  return candidate.slice(firstBrace, lastBrace + 1);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function parseGapAnalysisEnhancementResponse(
+  text: string
+): GapAnalysisEnhancement | null {
+  const jsonCandidate = extractLikelyJson(text);
+  if (!jsonCandidate) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(jsonCandidate) as {
+      why_gaps_matter?: unknown;
+      bridgeable_gaps?: unknown;
+      narrative_recommendations?: unknown;
+      apply_now_recommendation?: unknown;
+    };
+
+    const whyGapsMatter = Array.isArray(parsed.why_gaps_matter)
+      ? parsed.why_gaps_matter.filter(isNonEmptyString).map((item) => item.trim())
+      : [];
+
+    const bridgeableGaps = Array.isArray(parsed.bridgeable_gaps)
+      ? parsed.bridgeable_gaps
+          .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+          .map((item) => ({
+            gap: isNonEmptyString(item.gap) ? item.gap.trim() : "",
+            reason: isNonEmptyString(item.reason) ? item.reason.trim() : "",
+            how_to_position: isNonEmptyString(item.how_to_position)
+              ? item.how_to_position.trim()
+              : "",
+          }))
+          .filter((item) => item.gap && item.reason && item.how_to_position)
+      : [];
+
+    const narrativeRecommendations = Array.isArray(parsed.narrative_recommendations)
+      ? parsed.narrative_recommendations.filter(isNonEmptyString).map((item) => item.trim())
+      : [];
+
+    const recommendation = parsed.apply_now_recommendation;
+    if (!["apply_now", "apply_with_positioning", "close_gaps_first"].includes(String(recommendation))) {
+      return null;
+    }
+
+    if (whyGapsMatter.length === 0 || narrativeRecommendations.length === 0) {
+      return null;
+    }
+
+    return {
+      why_gaps_matter: whyGapsMatter.slice(0, 4),
+      bridgeable_gaps: bridgeableGaps.slice(0, 3),
+      narrative_recommendations: narrativeRecommendations.slice(0, 4),
+      apply_now_recommendation: recommendation as GapAnalysisEnhancement["apply_now_recommendation"],
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Cover letter generation
 // ---------------------------------------------------------------------------
@@ -579,17 +706,56 @@ function parseCoverLetterResponse(
 }
 
 /**
+ * Structured result from a successful LLM cover letter generation.
+ * Includes the body plus provider metadata for observability.
+ *
+ * Note: `attempts` lives on CoverLetterGenerationOutcome (the outer wrapper),
+ * not here — it applies to both success and failure paths.
+ */
+export interface CoverLetterLLMResult {
+  body: string;
+  /** Provider that produced the successful response. */
+  provider: string;
+  /** Model that produced the successful response. */
+  model: string;
+}
+
+/**
+ * Outcome of an LLM cover letter generation attempt.
+ * Always includes `attempts` — even on failure — so the caller can
+ * populate CoverLetterMeta accurately without guessing.
+ */
+export interface CoverLetterGenerationOutcome {
+  /** The LLM-generated result, or null if all candidates exhausted. */
+  result: CoverLetterLLMResult | null;
+  /** Total LLM attempts across all chain candidates. */
+  attempts: number;
+}
+
+export interface GapAnalysisLLMResult {
+  enhancement: GapAnalysisEnhancement;
+  provider: string;
+  model: string;
+}
+
+export interface GapAnalysisEnhancementOutcome {
+  result: GapAnalysisLLMResult | null;
+  attempts: number;
+}
+
+/**
  * Generate a tailored cover letter for a specific job match (Pro tier).
  *
  * Uses the same LLM provider chain and failover logic as `enhanceDraft()`.
- * Returns null on failure — caller is responsible for template fallback.
+ * Returns `{ result: null, attempts }` on failure — caller is responsible
+ * for template fallback. The `attempts` count is always accurate.
  *
  * @param job          - The job to write a cover letter for
  * @param profile      - User profile
  * @param resumeIntel  - Section-aware keyword signals
  * @param gapKeywords  - Keywords from the job not present in the profile
  * @param options      - Injectable fetch and chain override for testing
- * @returns Cover letter body string, or null on failure
+ * @returns Outcome with result + attempts count (attempts always populated)
  */
 export async function generateCoverLetter(
   job: NormalizedJob,
@@ -597,14 +763,15 @@ export async function generateCoverLetter(
   resumeIntel: ResumeIntelligence,
   gapKeywords: string[] = [],
   options: EnhanceOptions = {}
-): Promise<string | null> {
+): Promise<CoverLetterGenerationOutcome> {
   const fetchFn = options.fetchFn ?? fetch;
   const chain = options._chainOverride ?? buildChain();
   if (chain.length === 0) {
-    return null;
+    return { result: null, attempts: 0 };
   }
 
   let consecutiveFails = 0;
+  let totalAttempts = 0;
 
   for (const candidate of chain) {
     if (consecutiveFails >= LLM_CIRCUIT_BREAKER_FAILS) {
@@ -613,20 +780,139 @@ export async function generateCoverLetter(
 
     for (let attempt = 0; attempt < LLM_MAX_RETRIES; attempt++) {
       if (consecutiveFails >= LLM_CIRCUIT_BREAKER_FAILS) break;
+      totalAttempts++;
 
       try {
         const prompt = buildPrompt(job, profile, resumeIntel, gapKeywords, "cover_letter");
         const text = await callProvider(candidate, prompt, fetchFn);
         const body = parseCoverLetterResponse(text, job);
         if (body) {
-          return body;
+          return {
+            result: {
+              body,
+              provider: candidate.provider,
+              model: candidate.model,
+            },
+            attempts: totalAttempts,
+          };
         }
+        // Unparseable response — log and count as failure
+        console.warn(
+          `[careerclaw-llm] cover_letter parse failed`,
+          JSON.stringify({
+            provider: candidate.provider,
+            model: candidate.model,
+            attempt: attempt + 1,
+            reason: "unparseable_response",
+            bodyLength: text.length,
+            // parseCoverLetterResponse uses a 6-char prefix match for company sanity check
+            company: job.company,
+          }),
+        );
         consecutiveFails++;
-      } catch {
+      } catch (err) {
+        console.warn(
+          `[careerclaw-llm] cover_letter provider error`,
+          JSON.stringify({
+            provider: candidate.provider,
+            model: candidate.model,
+            attempt: attempt + 1,
+            error: err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200),
+          }),
+        );
         consecutiveFails++;
       }
     }
   }
 
-  return null;
+  console.warn(
+    `[careerclaw-llm] cover_letter all candidates exhausted`,
+    JSON.stringify({
+      totalAttempts,
+      consecutiveFails,
+      circuitBreakerLimit: LLM_CIRCUIT_BREAKER_FAILS,
+      job: { job_id: job.job_id, company: job.company },
+    }),
+  );
+
+  return { result: null, attempts: totalAttempts };
+}
+
+export async function enhanceGapAnalysis(
+  algorithmicResult: GapAnalysisResult,
+  job: NormalizedJob,
+  resumeIntel: ResumeIntelligence,
+  options: EnhanceOptions = {}
+): Promise<GapAnalysisEnhancementOutcome> {
+  const fetchFn = options.fetchFn ?? fetch;
+  const chain = options._chainOverride ?? buildChain();
+  if (chain.length === 0) {
+    return { result: null, attempts: 0 };
+  }
+
+  let consecutiveFails = 0;
+  let totalAttempts = 0;
+
+  for (const candidate of chain) {
+    if (consecutiveFails >= LLM_CIRCUIT_BREAKER_FAILS) {
+      break;
+    }
+
+    for (let attempt = 0; attempt < LLM_MAX_RETRIES; attempt++) {
+      if (consecutiveFails >= LLM_CIRCUIT_BREAKER_FAILS) break;
+      totalAttempts++;
+
+      try {
+        const prompt = buildGapAnalysisPrompt(job, resumeIntel, algorithmicResult);
+        const text = await callProvider(candidate, prompt, fetchFn);
+        const enhancement = parseGapAnalysisEnhancementResponse(text);
+        if (enhancement) {
+          return {
+            result: {
+              enhancement,
+              provider: candidate.provider,
+              model: candidate.model,
+            },
+            attempts: totalAttempts,
+          };
+        }
+
+        console.warn(
+          `[careerclaw-llm] gap_analysis parse failed`,
+          JSON.stringify({
+            provider: candidate.provider,
+            model: candidate.model,
+            attempt: attempt + 1,
+            reason: "unparseable_response",
+            bodyLength: text.length,
+            job: { job_id: job.job_id, company: job.company },
+          }),
+        );
+        consecutiveFails++;
+      } catch (err) {
+        console.warn(
+          `[careerclaw-llm] gap_analysis provider error`,
+          JSON.stringify({
+            provider: candidate.provider,
+            model: candidate.model,
+            attempt: attempt + 1,
+            error: err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200),
+          }),
+        );
+        consecutiveFails++;
+      }
+    }
+  }
+
+  console.warn(
+    `[careerclaw-llm] gap_analysis all candidates exhausted`,
+    JSON.stringify({
+      totalAttempts,
+      consecutiveFails,
+      circuitBreakerLimit: LLM_CIRCUIT_BREAKER_FAILS,
+      job: { job_id: job.job_id, company: job.company },
+    }),
+  );
+
+  return { result: null, attempts: totalAttempts };
 }

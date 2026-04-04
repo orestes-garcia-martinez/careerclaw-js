@@ -27,7 +27,12 @@ import type {
 import { fetchAllJobs, type FetchResult } from "./sources.js";
 import { rankJobs, rankJobsHybrid } from "./matching/index.js";
 import { draftOutreach, buildTemplateCoverLetter } from "./drafting.js";
-import { enhanceDraft, generateCoverLetter, type EnhanceOptions } from "./llm-enhance.js";
+import {
+  enhanceDraft,
+  generateCoverLetter,
+  enhanceGapAnalysis,
+  type EnhanceOptions,
+} from "./llm-enhance.js";
 import { checkLicense, type CheckLicenseOptions } from "./license.js";
 import { TrackingRepository } from "./tracking.js";
 import { DEFAULT_TOP_K, FREE_TOP_K, PRO_TOP_K, SEMANTIC_MATCHING } from "./config.js";
@@ -214,7 +219,10 @@ async function runBriefingInternal(
     for (const idx of gapAnalysisMatchIndices) {
       if (idx < 0 || idx >= matches.length) continue;
       const match = matches[idx]!;
-      const report = generateGapAnalysisForMatch(match, resumeIntel);
+      const report = await generateGapAnalysisForMatch(match, resumeIntel, {
+        enhanceFetchFn,
+        ...(executionMode.kind === "clawos" ? { executionContext: executionMode.context } : {}),
+      });
       gapAnalyses.push(report);
       gapCache.set(idx, report.analysis);
     }
@@ -296,6 +304,28 @@ export interface CoverLetterOptions {
   enhanceFetchFn?: EnhanceOptions["fetchFn"];
   /** Pre-computed gap analysis result. Skips re-computation if provided. */
   precomputedGap?: GapAnalysisResult;
+  /**
+   * Verified execution context from the calling platform.
+   *
+   * When provided, `generateCoverLetterForMatch` enforces the
+   * `TAILORED_COVER_LETTER` feature gate as a defense-in-depth check before
+   * attempting any LLM call. Callers (e.g. ClawOS worker) are expected to
+   * have already verified entitlements upstream — this is a secondary guard.
+   */
+  executionContext?: ClawOsExecutionContext;
+}
+
+export interface GapAnalysisOptions {
+  /** Injectable fetch for LLM calls — defaults to global fetch. */
+  enhanceFetchFn?: EnhanceOptions["fetchFn"];
+  /**
+   * Verified execution context from the calling platform.
+   *
+   * When provided, `generateGapAnalysisForMatch` enforces the
+   * `LLM_GAP_ANALYSIS` feature gate before attempting any LLM enhancement.
+   * The algorithmic `analysis` result is always returned either way.
+   */
+  executionContext?: ClawOsExecutionContext;
 }
 
 /**
@@ -321,11 +351,41 @@ export async function generateCoverLetterForMatch(
   resumeIntel: ResumeIntelligence,
   options: CoverLetterOptions = {}
 ): Promise<CoverLetter> {
-  const { enhanceFetchFn, precomputedGap } = options;
+  const { enhanceFetchFn, precomputedGap, executionContext } = options;
+  // Hoist gap computation — used by both the feature-gate early return and the
+  // normal LLM/template paths, so compute once regardless of which path runs.
   const gapResult = precomputedGap ?? gapAnalysis(resumeIntel, match.job);
 
+  // Defense-in-depth: if a verified context is provided and the
+  // TAILORED_COVER_LETTER feature is absent, return template immediately
+  // without attempting any LLM call. The primary gate lives upstream in the
+  // calling platform — this is a secondary guard.
+  if (
+    executionContext !== undefined &&
+    !hasCareerClawFeature(executionContext, CAREERCLAW_FEATURES.TAILORED_COVER_LETTER)
+  ) {
+    const templateResult = buildTemplateCoverLetter(
+      match.job,
+      profile,
+      match.matched_keywords,
+      gapResult
+    );
+    return {
+      ...templateResult,
+      _meta: {
+        provider: "template",
+        model: "deterministic",
+        attempts: 0,
+        fallback_reason: "feature_not_entitled",
+        latency_ms: 0,
+      },
+    };
+  }
+
+  const genStartMs = Date.now();
+
   // Attempt LLM generation; fall back to deterministic template
-  const llmBody = await generateCoverLetter(
+  const { result: llmResult, attempts: llmAttempts } = await generateCoverLetter(
     match.job,
     profile,
     resumeIntel,
@@ -333,10 +393,12 @@ export async function generateCoverLetterForMatch(
     enhanceFetchFn !== undefined ? { fetchFn: enhanceFetchFn } : {}
   );
 
-  if (llmBody) {
+  const genLatencyMs = Date.now() - genStartMs;
+
+  if (llmResult) {
     return {
       job_id: match.job.job_id,
-      body: llmBody,
+      body: llmResult.body,
       tone: "professional",
       is_template: false,
       match_score: gapResult.fit_score,
@@ -344,16 +406,34 @@ export async function generateCoverLetterForMatch(
         top_signals: gapResult.summary.top_signals.keywords,
         top_gaps: gapResult.summary.top_gaps.keywords,
       },
+      _meta: {
+        provider: llmResult.provider,
+        model: llmResult.model,
+        attempts: llmAttempts,
+        fallback_reason: null,
+        latency_ms: genLatencyMs,
+      },
     };
   }
 
   // LLM failed — deterministic template fallback
-  return buildTemplateCoverLetter(
+  const templateResult = buildTemplateCoverLetter(
     match.job,
     profile,
     match.matched_keywords,
     gapResult
   );
+
+  return {
+    ...templateResult,
+    _meta: {
+      provider: "template",
+      model: "deterministic",
+      attempts: llmAttempts,
+      fallback_reason: "llm_chain_exhausted",
+      latency_ms: genLatencyMs,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -368,22 +448,78 @@ export async function generateCoverLetterForMatch(
  *   - Standalone by ClawOS when a user picks a specific match
  *   - From the CLI with --gap-analysis <index>
  *
- * No LLM calls — pure computation. Returns a GapAnalysisReport with
- * job metadata for UI display symmetry with CoverLetter.
+ * Returns the algorithmic gap analysis plus optional LLM-generated
+ * qualitative enhancement when the caller is entitled.
  *
  * The returned `analysis` field can be passed as `precomputedGap` to
  * `generateCoverLetterForMatch()` to avoid redundant computation.
  */
-export function generateGapAnalysisForMatch(
+export async function generateGapAnalysisForMatch(
   match: ScoredJob,
   resumeIntel: ResumeIntelligence,
-): GapAnalysisReport {
+  options: GapAnalysisOptions = {}
+): Promise<GapAnalysisReport> {
+  const { executionContext, enhanceFetchFn } = options;
   const result = gapAnalysis(resumeIntel, match.job);
+
+  if (
+    executionContext === undefined ||
+    !hasCareerClawFeature(executionContext, CAREERCLAW_FEATURES.LLM_GAP_ANALYSIS)
+  ) {
+    return {
+      job_id: match.job.job_id,
+      title: match.job.title,
+      company: match.job.company,
+      analysis: result,
+      _meta: {
+        provider: "none",
+        model: "none",
+        attempts: 0,
+        fallback_reason:
+          executionContext === undefined ? "execution_context_missing" : "feature_not_entitled",
+        latency_ms: 0,
+      },
+    };
+  }
+
+  const enhancementStartMs = Date.now();
+  const { result: enhancementResult, attempts } = await enhanceGapAnalysis(
+    result,
+    match.job,
+    resumeIntel,
+    enhanceFetchFn !== undefined ? { fetchFn: enhanceFetchFn } : {}
+  );
+  const enhancementLatencyMs = Date.now() - enhancementStartMs;
+
+  if (!enhancementResult) {
+    return {
+      job_id: match.job.job_id,
+      title: match.job.title,
+      company: match.job.company,
+      analysis: result,
+      _meta: {
+        provider: "none",
+        model: "none",
+        attempts,
+        fallback_reason: "llm_chain_exhausted",
+        latency_ms: enhancementLatencyMs,
+      },
+    };
+  }
+
   return {
     job_id: match.job.job_id,
     title: match.job.title,
     company: match.job.company,
     analysis: result,
+    enhancement: enhancementResult.enhancement,
+    _meta: {
+      provider: enhancementResult.provider,
+      model: enhancementResult.model,
+      attempts,
+      fallback_reason: null,
+      latency_ms: enhancementLatencyMs,
+    },
   };
 }
 
