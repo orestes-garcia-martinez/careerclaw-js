@@ -79,6 +79,58 @@ export const HN_API_BASE = "https://hacker-news.firebaseio.com/v0";
 /** Maximum number of HN comment IDs to fetch per briefing run. */
 export const HN_MAX_COMMENTS = 200;
 
+/** SerpApi Search API base URL. */
+export const SERPAPI_API_BASE = "https://serpapi.com/search.json";
+
+/** SerpApi private key for the Google Jobs aggregator. */
+export const SERPAPI_API_KEY: string | undefined =
+	process.env["CAREERCLAW_SERPAPI_API_KEY"]?.trim();
+
+/**
+ * Enables the SerpApi Google Jobs aggregator.
+ *
+ * Defaults to enabled when an API key is present, otherwise disabled.
+ */
+export const SERPAPI_GOOGLE_JOBS_ENABLED: boolean =
+	(process.env["CAREERCLAW_SERPAPI_GOOGLE_JOBS_ENABLED"] ??
+		(SERPAPI_API_KEY ? "true" : "false")) !== "false";
+
+/** Maximum number of SerpApi Google Jobs pages to fetch per briefing run. */
+export const SERPAPI_GOOGLE_JOBS_MAX_PAGES: number = parseInt(
+	process.env["CAREERCLAW_SERPAPI_GOOGLE_JOBS_MAX_PAGES"] ?? "1",
+	10
+);
+
+/** Allow SerpApi cached responses (cached searches are free for 1 hour). */
+export const SERPAPI_GOOGLE_JOBS_NO_CACHE: boolean =
+	(process.env["CAREERCLAW_SERPAPI_GOOGLE_JOBS_NO_CACHE"] ?? "false") === "true";
+
+/** Localization defaults for SerpApi Google Jobs searches. */
+export const SERPAPI_GOOGLE_JOBS_GL: string =
+	process.env["CAREERCLAW_SERPAPI_GOOGLE_JOBS_GL"] ?? "us";
+
+export const SERPAPI_GOOGLE_JOBS_HL: string =
+	process.env["CAREERCLAW_SERPAPI_GOOGLE_JOBS_HL"] ?? "en";
+
+/**
+ * Hard cap on the location search radius in kilometres.
+ *
+ * Acts as an operator-level ceiling: the effective radius is
+ * `min(profile.location_radius_km, cap)`. When the profile does not specify
+ * a radius, the cap is used as the default.
+ *
+ * Defaults to 161 km (~100 miles) — the natural upper bound for US commute
+ * searches. Set to 0 to disable radius filtering entirely.
+ *
+ * Note: ClawOS stores and displays this value in miles in the UI; the worker
+ * adapter converts miles → km (× 1.60934) before populating
+ * `UserProfile.location_radius_km`.
+ */
+export const SERPAPI_GOOGLE_JOBS_RADIUS_KM: number = parseInt(
+	process.env["CAREERCLAW_SERPAPI_GOOGLE_JOBS_RADIUS_KM"] ?? "161",
+	10
+);
+
 // ---------------------------------------------------------------------------
 // Briefing defaults
 // ---------------------------------------------------------------------------

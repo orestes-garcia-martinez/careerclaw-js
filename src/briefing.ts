@@ -24,7 +24,7 @@ import type {
   ResumeIntelligence,
   GapAnalysisResult,
 } from "./models.js";
-import { fetchAllJobs, type FetchResult } from "./sources.js";
+import { fetchAllJobs, type FetchJobsFn, type FetchResult } from "./sources.js";
 import { rankJobs, rankJobsHybrid } from "./matching/index.js";
 import { draftOutreach, buildTemplateCoverLetter } from "./drafting.js";
 import {
@@ -46,7 +46,7 @@ import {
 export interface BriefingOptions {
   topK?: number;
   dryRun?: boolean;
-  fetchFn?: () => Promise<FetchResult>;
+  fetchFn?: FetchJobsFn;
   repo?: TrackingRepository;
   resumeIntel?: ResumeIntelligence;
   resumeText?: string;
@@ -63,7 +63,7 @@ export interface BriefingOptions {
 export interface ContextBriefingOptions {
   topK?: number;
   dryRun?: boolean;
-  fetchFn?: () => Promise<FetchResult>;
+  fetchFn?: FetchJobsFn;
   repo?: TrackingRepository;
   resumeIntel?: ResumeIntelligence;
   resumeText?: string;
@@ -118,7 +118,7 @@ async function runBriefingInternal(
   options: {
     topK?: number;
     dryRun?: boolean;
-    fetchFn?: () => Promise<FetchResult>;
+    fetchFn?: FetchJobsFn;
     repo?: TrackingRepository;
     resumeIntel?: ResumeIntelligence;
     resumeText?: string;
@@ -162,7 +162,7 @@ async function runBriefingInternal(
   const fetchStart = Date.now();
   let fetchResult: FetchResult;
   try {
-    fetchResult = await fetchFn();
+    fetchResult = await fetchFn(profile);
   } catch {
     fetchResult = { jobs: [], counts: {}, errors: {} };
   }

@@ -7,7 +7,8 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { deduplicate } from "../sources.js";
-import type { NormalizedJob } from "../models.js";
+import { emptyProfile } from "../models.js";
+import type { NormalizedJob, UserProfile } from "../models.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,6 +28,16 @@ function makeJob(overrides: Partial<NormalizedJob> & { job_id: string }): Normal
     experience_years: null,
     posted_at: null,
     fetched_at: "2026-03-03T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+
+function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
+  return {
+    ...emptyProfile(),
+    target_roles: ["Software Engineer"],
+    work_mode: "remote",
     ...overrides,
   };
 }
@@ -91,9 +102,12 @@ describe("fetchAllJobs — adapter stubs", () => {
     vi.doMock("../adapters/hackernews.js", () => ({
       fetchHnJobs: async () => [makeJob({ job_id: "h1", source: "hackernews" })],
     }));
+    vi.doMock("../adapters/serpapi-google-jobs.js", () => ({
+      fetchSerpApiGoogleJobs: async () => [],
+    }));
 
     const { fetchAllJobs } = await import("../sources.js");
-    const result = await fetchAllJobs();
+    const result = await fetchAllJobs(makeProfile());
 
     expect(result.jobs).toHaveLength(2);
     expect(result.counts["remoteok"]).toBe(1);
@@ -108,9 +122,12 @@ describe("fetchAllJobs — adapter stubs", () => {
     vi.doMock("../adapters/hackernews.js", () => ({
       fetchHnJobs: async () => [makeJob({ job_id: "h1", source: "hackernews" })],
     }));
+    vi.doMock("../adapters/serpapi-google-jobs.js", () => ({
+      fetchSerpApiGoogleJobs: async () => [],
+    }));
 
     const { fetchAllJobs } = await import("../sources.js");
-    const result = await fetchAllJobs();
+    const result = await fetchAllJobs(makeProfile());
 
     expect(result.jobs).toHaveLength(1);
     expect(result.counts["remoteok"]).toBe(0);
@@ -124,9 +141,12 @@ describe("fetchAllJobs — adapter stubs", () => {
     vi.doMock("../adapters/hackernews.js", () => ({
       fetchHnJobs: async () => { throw new Error("timeout"); },
     }));
+    vi.doMock("../adapters/serpapi-google-jobs.js", () => ({
+      fetchSerpApiGoogleJobs: async () => [],
+    }));
 
     const { fetchAllJobs } = await import("../sources.js");
-    const result = await fetchAllJobs();
+    const result = await fetchAllJobs(makeProfile());
 
     expect(result.jobs).toHaveLength(1);
     expect(result.counts["hackernews"]).toBe(0);
@@ -140,12 +160,42 @@ describe("fetchAllJobs — adapter stubs", () => {
     vi.doMock("../adapters/hackernews.js", () => ({
       fetchHnJobs: async () => { throw new Error("firebase down"); },
     }));
+    vi.doMock("../adapters/serpapi-google-jobs.js", () => ({
+      fetchSerpApiGoogleJobs: async () => [],
+    }));
 
     const { fetchAllJobs } = await import("../sources.js");
-    const result = await fetchAllJobs();
+    const result = await fetchAllJobs(makeProfile());
 
     expect(result.jobs).toEqual([]);
     expect(Object.keys(result.errors)).toHaveLength(2);
+  });
+
+  it("includes SerpApi Google Jobs results when the adapter returns jobs", async () => {
+    vi.doMock("../adapters/remoteok.js", () => ({
+      fetchRemoteOkJobs: async () => [],
+    }));
+    vi.doMock("../adapters/hackernews.js", () => ({
+      fetchHnJobs: async () => [],
+    }));
+    vi.doMock("../adapters/serpapi-google-jobs.js", () => ({
+      fetchSerpApiGoogleJobs: async () => [makeJob({ job_id: "s1", source: "serpapi_google_jobs" })],
+    }));
+    vi.doMock("../config.js", async () => {
+      const actual = await vi.importActual<typeof import("../config.js")>("../config.js");
+      return {
+        ...actual,
+        SERPAPI_GOOGLE_JOBS_ENABLED: true,
+        SERPAPI_API_KEY: "test-key",
+      };
+    });
+
+    const { fetchAllJobs } = await import("../sources.js");
+    const result = await fetchAllJobs(makeProfile());
+
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0]!.source).toBe("serpapi_google_jobs");
+    expect(result.counts["serpapi_google_jobs"]).toBe(1);
   });
 
   it("deduplicates cross-source duplicates", async () => {
@@ -155,9 +205,12 @@ describe("fetchAllJobs — adapter stubs", () => {
     vi.doMock("../adapters/hackernews.js", () => ({
       fetchHnJobs: async () => [makeJob({ job_id: "shared", source: "hackernews" })],
     }));
+    vi.doMock("../adapters/serpapi-google-jobs.js", () => ({
+      fetchSerpApiGoogleJobs: async () => [],
+    }));
 
     const { fetchAllJobs } = await import("../sources.js");
-    const result = await fetchAllJobs();
+    const result = await fetchAllJobs(makeProfile());
 
     expect(result.jobs).toHaveLength(1);
     expect(result.jobs[0]!.source).toBe("remoteok"); // first-seen wins

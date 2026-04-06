@@ -1,0 +1,43 @@
+{
+  "search_metadata": {
+    "status": "Success"
+  },
+  "jobs_results": [
+    {
+      "title": "Senior Frontend Engineer",
+      "company_name": "Acme Corp",
+      "location": "Remote",
+      "via": "LinkedIn",
+      "share_link": "https://www.google.com/search?ibp=htl;jobs&q=senior+frontend+engineer+remote&htidocid=abc123",
+      "description": "Build React and TypeScript applications for a distributed product team. 5+ years of experience required. Salary $170k - $190k.",
+      "extensions": ["3 days ago", "Full-time", "Remote"],
+      "detected_extensions": {
+        "posted_at": "3 days ago",
+        "schedule_type": "Full-time"
+      },
+      "job_highlights": [
+        {
+          "title": "Qualifications",
+          "items": [
+            "5+ years of frontend engineering experience",
+            "Expertise with React and TypeScript"
+          ]
+        },
+        {
+          "title": "Responsibilities",
+          "items": [
+            "Build modern web interfaces",
+            "Collaborate with design and backend teams"
+          ]
+        }
+      ],
+      "apply_options": [
+        {
+          "title": "LinkedIn",
+          "link": "https://www.linkedin.com/jobs/view/123456"
+        }
+      ],
+      "job_id": "serpapi-job-abc123"
+    }
+  ]
+}

@@ -8,3 +8,12 @@
 export { fetchRemoteOkJobs, parseRss, stripHtml, stableId } from "./remoteok.js";
 export { fetchHnJobs, parseComment } from "./hackernews.js";
 export type { HnItem } from "./hackernews.js";
+export {
+  fetchSerpApiGoogleJobs,
+  buildSerpApiGoogleJobsRequest,
+  mapSerpApiJobToNormalizedJob,
+  SerpApiConfigurationError,
+  SerpApiInvalidApiKeyError,
+  SerpApiRateLimitError,
+  SerpApiRequestError,
+} from "./serpapi-google-jobs.js";
