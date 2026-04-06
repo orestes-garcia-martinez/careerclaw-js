@@ -164,29 +164,34 @@ export async function fetchSerpApiGoogleJobs(
   let nextPageToken: string | undefined;
 
   for (let page = 0; page < maxPages; page++) {
-    const response = await searchGoogleJobs(
-      {
-        ...request,
-        ...(nextPageToken ? { nextPageToken } : {}),
-      },
-      {
-        apiKey,
-        fetchFn,
-        noCache,
-      },
-    );
+    try {
+      const response = await searchGoogleJobs(
+        {
+          ...request,
+          ...(nextPageToken ? { nextPageToken } : {}),
+        },
+        {
+          apiKey,
+          fetchFn,
+          noCache,
+        },
+      );
 
-    const jobs = (response.jobs_results ?? []).map((job) =>
-      mapSerpApiJobToNormalizedJob(job, {
-        query: request.q,
-        fetchedAt,
-      }),
-    );
+      const jobs = (response.jobs_results ?? []).map((job) =>
+        mapSerpApiJobToNormalizedJob(job, {
+          query: request.q,
+          fetchedAt,
+        }),
+      );
 
-    allJobs.push(...jobs);
+      allJobs.push(...jobs);
 
-    nextPageToken = response.serpapi_pagination?.next_page_token;
-    if (!nextPageToken) break;
+      nextPageToken = response.serpapi_pagination?.next_page_token;
+      if (!nextPageToken) break;
+    } catch (err) {
+      if (page === 0) throw err; // no results yet — surface the error
+      break; // keep jobs from earlier pages, stop pagination
+    }
   }
 
   return allJobs;
@@ -197,12 +202,16 @@ export function buildSerpApiGoogleJobsRequest(
 ): SerpApiGoogleJobsRequest {
   const primaryRole = firstNonEmpty(profile.target_roles) ?? inferFallbackRole(profile);
   const isRemote = profile.work_mode === "remote";
+  // Only apply geographic filters for explicitly location-based modes.
+  // "any" and null are intentionally open — no location constraint applied.
+  const isLocationBased = profile.work_mode === "onsite" || profile.work_mode === "hybrid";
 
   // For remote mode use ltype=1 (Google's native remote filter) — don't append
   // the word "remote" to q or pass a geographic location.
   // For onsite/hybrid, include the location in q and as the location param.
+  // For "any"/null, query on role alone — broadest possible result set.
   const queryParts = [primaryRole];
-  if (!isRemote && profile.location) {
+  if (isLocationBased && profile.location) {
     queryParts.push(profile.location.trim());
   }
 
@@ -213,7 +222,7 @@ export function buildSerpApiGoogleJobsRequest(
     );
   }
 
-  const geoLocation = !isRemote && profile.location ? profile.location.trim() : undefined;
+  const geoLocation = isLocationBased && profile.location ? profile.location.trim() : undefined;
 
   return {
     q,

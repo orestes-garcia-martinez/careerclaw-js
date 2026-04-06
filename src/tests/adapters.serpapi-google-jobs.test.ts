@@ -82,6 +82,33 @@ describe("buildSerpApiGoogleJobsRequest", () => {
     expect(request.radiusKm).toBeUndefined();
   });
 
+  it("does not apply location or ltype for work_mode 'any' — broadest open search", () => {
+    const request = buildSerpApiGoogleJobsRequest({
+      ...emptyProfile(),
+      target_roles: ["Software Engineer"],
+      work_mode: "any",
+      location: "Austin, TX",
+    });
+
+    expect(request.q).toBe("Software Engineer");
+    expect(request.location).toBeUndefined();
+    expect(request.ltype).toBeUndefined();
+    expect(request.radiusKm).toBeUndefined();
+  });
+
+  it("does not apply location or ltype when work_mode is null", () => {
+    const request = buildSerpApiGoogleJobsRequest({
+      ...emptyProfile(),
+      target_roles: ["Software Engineer"],
+      work_mode: null,
+      location: "Austin, TX",
+    });
+
+    expect(request.q).toBe("Software Engineer");
+    expect(request.location).toBeUndefined();
+    expect(request.ltype).toBeUndefined();
+  });
+
   it("falls back to the resume summary when no target role exists", () => {
     const request = buildSerpApiGoogleJobsRequest({
       ...emptyProfile(),
@@ -168,6 +195,44 @@ describe("fetchSerpApiGoogleJobs", () => {
           target_roles: ["Software Engineer"],
         },
         { apiKey: "limited-key", fetchFn: fetchFn as unknown as typeof fetch },
+      ),
+    ).rejects.toBeInstanceOf(SerpApiRateLimitError);
+  });
+
+  it("returns page-1 jobs when a subsequent page errors, rather than failing the whole source", async () => {
+    const page1 = {
+      ...FIXTURE,
+      serpapi_pagination: { next_page_token: "tok2" },
+    };
+    const fetchFn = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify(page1) })
+      .mockResolvedValueOnce({ ok: false, status: 429, text: async () => JSON.stringify({ error: "rate limit" }) });
+
+    const jobs = await fetchSerpApiGoogleJobs(
+      {
+        ...emptyProfile(),
+        target_roles: ["Software Engineer"],
+        work_mode: "remote",
+      },
+      { apiKey: "test-key", maxPages: 2, fetchFn: fetchFn as unknown as typeof fetch },
+    );
+
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(jobs).toHaveLength(1); // page 1 preserved
+    expect(jobs[0]?.source).toBe("serpapi_google_jobs");
+  });
+
+  it("throws when the first page itself errors — no results to salvage", async () => {
+    const fetchFn = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: async () => JSON.stringify({ error: "rate limit" }),
+    });
+
+    await expect(
+      fetchSerpApiGoogleJobs(
+        { ...emptyProfile(), target_roles: ["Software Engineer"] },
+        { apiKey: "test-key", fetchFn: fetchFn as unknown as typeof fetch },
       ),
     ).rejects.toBeInstanceOf(SerpApiRateLimitError);
   });
