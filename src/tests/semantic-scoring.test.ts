@@ -88,7 +88,7 @@ describe("semantic scoring", () => {
     expect(result.gaps).toContain("nodejs");
   });
 
-  it("resume text adds extra semantic phrases", () => {
+  it("resume text adds extra lexical tokens and phrases", () => {
     const baseView = buildProfileSemanticView(makeProfile());
     const richerView = buildProfileSemanticView(makeProfile(), {
       resumeText:
@@ -98,5 +98,28 @@ describe("semantic scoring", () => {
     expect(richerView.semanticPhrases.size).toBeGreaterThanOrEqual(
       baseView.semanticPhrases.size
     );
+    // Raw lexical tokens from resume text are still indexed
+    expect(richerView.lexicalWeights.has("clinical")).toBe(true);
+    expect(richerView.lexicalWeights.has("documentation")).toBe(true);
+  });
+
+  it("resume text does NOT inject phantom taxonomy concepts", () => {
+    // A designer's resume may say "Worked closely with PM and engineering..."
+    // The word "PM" must not expand the profile into the project-management
+    // concept cluster — that skill belongs to someone else, not the user.
+    const designerProfile = makeProfile({
+      skills: ["figma", "design systems"],
+      target_roles: ["product designer"],
+      resume_summary: "Product designer with 9 years of UX experience.",
+    });
+    const view = buildProfileSemanticView(designerProfile, {
+      resumeText:
+        "Worked closely with PM and engineering to ship complex workflows in smaller, testable increments.",
+    });
+
+    expect(view.semanticConcepts.has("project management")).toBe(false);
+    // The designer's own taxonomy concepts should still be present
+    expect(view.semanticConcepts.has("product design")).toBe(true);
+    expect(view.semanticConcepts.has("design systems")).toBe(true);
   });
 });
