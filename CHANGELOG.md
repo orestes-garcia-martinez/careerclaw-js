@@ -6,6 +6,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.10.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.9.0...careerclaw-js-v1.10.0) (2026-04-07)
+
+
+### Features
+
+* **adapters:** add SerpApi Google Jobs aggregator source ([#71](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/71)) ([ea086db](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/ea086db3b0bcd08e085473299b9ff0f9bf560ddd))
+
 ## [1.9.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.8.0...careerclaw-js-v1.9.0) (2026-04-04)
 
 
