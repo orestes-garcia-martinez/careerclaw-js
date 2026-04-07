@@ -22,7 +22,7 @@ fetch listings → rank matches → draft outreach → track applications.
 
 ## How It Works
 
-1. **Fetches** job listings from RemoteOK RSS and Hacker News Who's Hiring
+1. **Fetches** job listings from RemoteOK RSS, Hacker News Who's Hiring, and optionally SerpApi's Google Jobs aggregator for broader multi-board coverage
 2. **Ranks** them against your profile using keyword overlap, experience alignment, salary fit, and work-mode preference
 3. **Drafts** outreach for each top match (deterministic template on Free; LLM-enhanced on Pro)
 4. **Tracks** your application pipeline locally in `.careerclaw/`
@@ -76,9 +76,12 @@ Create : `~/.careerclaw/profile.json`
   "work_mode": "remote",
   "resume_summary": "Senior engineer with 7 years building distributed systems and developer tools.",
   "location": "Austin, TX",
+  "location_radius_km": null,
   "salary_min": 150000
 }
 ```
+
+`location_radius_km` is optional. When set, it limits location-based job source searches (e.g. SerpApi) to within that radius. Only applied when `work_mode` is `"onsite"` or `"hybrid"`. Defaults to the operator cap (161 km / ~100 mi) when null. ClawOS users set this in miles through the UI — the platform converts to km automatically.
 
 ### 4. Run your first standalone briefing
 
@@ -99,8 +102,8 @@ careerclaw-js --resume-txt ~/.careerclaw/resume.txt --json
 Sample Output
 
 === CareerClaw Daily Briefing ===
-Fetched jobs: 289 | Sources: remoteok: 98 | hackernews: 191
-Duration: 1887ms fetch + 24ms rank
+Fetched jobs: 303 | Sources: remoteok: 97 | hackernews: 196 | serpapi_google_jobs: 10
+Duration: 1922ms fetch + 182ms rank
 
 Top Matches:
 
@@ -116,15 +119,15 @@ Top Matches:
 
 CareerClaw has two ways to unlock Pro features depending on how you run it:
 
-| Feature                             | Free | Pro           |
-|-------------------------------------|------|---------------|
-| Daily briefing                      | ✅    | ✅             |
-| Top 3 ranked matches                | ✅    | ✅             |
-| Application tracking                | ✅    | ✅             |
-| Outreach email draft (template)     | ✅    | ✅             |
-| LLM-enhanced outreach email         | —    | ✅             |
-| Resume gap analysis                 | —    | ✅             |
-| Cover letter (tailored, <300 words) | —    | ✅ coming soon |
+| Feature                                          | Free | Pro   |
+|--------------------------------------------------|------|-------|
+| Daily briefing                                   | ✅   | ✅    |
+| Top 3 ranked matches                             | ✅   | ✅    |
+| Application tracking                             | ✅   | ✅    |
+| Outreach email draft (template)                  | ✅   | ✅    |
+| LLM-enhanced outreach email                      | —    | ✅    |
+| LLM-enhanced Resume gap analysis                 | —    | ✅    |
+| LLM-enhanced Cover letter (tailored, <300 words) | —    | ✅    |
 
 ### Pro pricing
 
@@ -133,7 +136,7 @@ CareerClaw has two ways to unlock Pro features depending on how you run it:
 | **ClawOS (recommended)** | **$9/month**                        | Managed billing, trusted platform activation, no key management. Visit [clawoshq.com](https://clawoshq.com/)                                |
 | **Standalone**           | **$39 one-time (lifetime license)** | Gumroad key validated against API, cached locally. Purchase at [ogm.gumroad.com/l/careerclaw-pro](https://ogm.gumroad.com/l/careerclaw-pro) |
 
-Recommendation: If you're using ClawOS, purchase Pro through the platform — it handles entitlement, billing, and activation for you. 
+Recommendation: If you're using ClawOS, purchase Pro through the platform — it handles entitlement, billing, and activation for you.
 The standalone Gumroad license is intended for users running the CLI directly or integrating CareerClaw as a skill on other agentic platforms.
 
 ### Pro: Activating
@@ -146,8 +149,8 @@ In ClawOS mode:
 
 #### Standalone users
 Purchase a license key on Gumroad. The key is emailed immediately after payment.
-Add your standalone Pro key to .env or your process environment. 
-The key is validated against Gumroad on first use and cached locally as a SHA-256 hash. 
+Add your standalone Pro key to .env or your process environment.
+The key is validated against Gumroad on first use and cached locally as a SHA-256 hash.
 Re-validation happens every 7 days (requires internet).
 
 ### Docker / self-hosted
@@ -158,23 +161,51 @@ CAREERCLAW_OPENAI_KEY=sk-...
 
 ### Pro: LLM-Enhanced Drafts
 
-With a valid Pro license and an LLM API key, CareerClaw writes personalised outreach emails using your 
-actual resume signals mapped to each job's specific requirements. Falls back to the deterministic template
-silently on any LLM failure.
+With a valid Pro license and an LLM API key, CareerClaw:
+
+- Writes personalized outreach emails using your actual resume signals mapped to each job's specific requirements. Falls back to the deterministic template silently on any LLM failure.
+- Enhances the algorithmic gap analysis with personalized insights and recommendations.
+- Generates a tailored cover letter (<300 words) for a specific job match.
+
 Failover chain example (tries Anthropic first, falls back to OpenAI):
 
+```bash
 CAREERCLAW_ANTHROPIC_KEY=sk-ant-...
 CAREERCLAW_OPENAI_KEY=sk-...
 CAREERCLAW_LLM_CHAIN=anthropic/claude-haiku-4-5-20251001,openai/gpt-4o-mini
+```
 
 Estimated cost per run: ~$0.003 at claude-haiku-4-5-20251001 pricing (3 drafts).
+
+### Optional: SerpApi Google Jobs aggregator
+
+For broader job coverage, you can enable SerpApi's Google Jobs engine. This surfaces listings from LinkedIn, ZipRecruiter, Lever, Greenhouse, and company career pages through one structured API — without maintaining site-specific scrapers.
+
+```bash
+CAREERCLAW_SERPAPI_API_KEY=...
+CAREERCLAW_SERPAPI_GOOGLE_JOBS_ENABLED=true
+CAREERCLAW_SERPAPI_GOOGLE_JOBS_MAX_PAGES=1         # pages per run (1–5)
+CAREERCLAW_SERPAPI_GOOGLE_JOBS_RADIUS_KM=161       # operator hard cap (~100 mi); user radius is capped here
+CAREERCLAW_SERPAPI_GOOGLE_JOBS_GL=us               # Google country domain
+CAREERCLAW_SERPAPI_GOOGLE_JOBS_HL=en               # UI language
+CAREERCLAW_SERPAPI_GOOGLE_JOBS_NO_CACHE=false      # true = bypass SerpApi cache (uses search credits)
+```
+
+**How location and radius work:**
+
+- `work_mode: "remote"` — uses SerpApi's native remote filter (`ltype=1`). No geographic `location` or radius is sent.
+- `work_mode: "onsite"` / `"hybrid"` — passes `profile.location` as the geographic anchor and `profile.location_radius_km` as the search radius (`lrad`), capped at `CAREERCLAW_SERPAPI_GOOGLE_JOBS_RADIUS_KM`.
+
+**ClawOS users** set `CAREERCLAW_SERPAPI_API_KEY` (and optionally the other vars) on the **worker** service. The radius is configured in miles through the ClawOS settings UI and converted to km automatically.
+
+**Standalone users** place these in `.env`; `location_radius_km` in `profile.json` accepts kilometres directly.
 
 ### Programmatic Integration
 
 CareerClaw exposes a direct-import runtime for both trusted platform adapters and standalone programmatic use.
 
 #### ClawOS (trusted platform context)
-Use createClawOsExecutionContext() to build a verified context after upstream entitlement checks. 
+Use createClawOsExecutionContext() to build a verified context after upstream entitlement checks.
 CareerClaw trusts this context and skips standalone license validation entirely.
 
 ```ts
@@ -200,7 +231,7 @@ const result = await runCareerClawWithContext(
 );
 ```
 
-This API is intended for trusted platform code paths such as the ClawOS worker after assertion verification. 
+This API is intended for trusted platform code paths such as the ClawOS worker after assertion verification.
 The public standalone CLI keeps its own standalone license flow.
 
 ### Standalone (programmatic)
@@ -251,22 +282,29 @@ Runtime files — all stored under .careerclaw/:
 | `runs.jsonl`     | Append-only run log (one line per run)           |
 | `.license_cache` | Pro license validation cache (SHA-256 hash only) |
 
-File format compatibility: careerclaw-js uses the same JSON formats as the Python careerclaw package. 
-profile.json, tracking.json, and runs.jsonl are fully interchangeable between both implementations. 
+File format compatibility: careerclaw-js uses the same JSON formats as the Python careerclaw package.
+profile.json, tracking.json, and runs.jsonl are fully interchangeable between both implementations.
 
 ### Environment Variables
 
-| Variable                   | Description                                                                           |
-|----------------------------|---------------------------------------------------------------------------------------|
-| `CAREERCLAW_PRO_KEY`       | Pro license key (Gumroad)                                                             |
-| `CAREERCLAW_ANTHROPIC_KEY` | Anthropic API key for LLM draft enhancement                                           |
-| `CAREERCLAW_OPENAI_KEY`    | OpenAI API key for LLM draft enhancement                                              |
-| `CAREERCLAW_LLM_KEY`       | Legacy single-provider key fallback                                                   |
-| `CAREERCLAW_LLM_CHAIN`     | Ordered failover chain, e.g. `anthropic/claude-haiku-4-5-20251001,openai/gpt-4o-mini` |
-| `CAREERCLAW_LLM_MODEL`     | Override default LLM model                                                            |
-| `CAREERCLAW_LLM_PROVIDER`  | `anthropic` or `openai` (inferred from key when not set)                              |
-| `CAREERCLAW_DIR`           | Override runtime directory (default: `.careerclaw`)                                   |
-| `HN_WHO_IS_HIRING_ID`      | Override HN thread ID (updated monthly)                                               |
+| Variable                                    | Default  | Description                                                                           |
+|---------------------------------------------|----------|---------------------------------------------------------------------------------------|
+| `CAREERCLAW_PRO_KEY`                        | —        | Pro license key (Gumroad)                                                             |
+| `CAREERCLAW_ANTHROPIC_KEY`                  | —        | Anthropic API key for LLM draft enhancement                                           |
+| `CAREERCLAW_OPENAI_KEY`                     | —        | OpenAI API key for LLM draft enhancement                                              |
+| `CAREERCLAW_LLM_KEY`                        | —        | Legacy single-provider key fallback                                                   |
+| `CAREERCLAW_LLM_CHAIN`                      | —        | Ordered failover chain, e.g. `anthropic/claude-haiku-4-5-20251001,openai/gpt-4o-mini` |
+| `CAREERCLAW_LLM_MODEL`                      | —        | Override default LLM model                                                            |
+| `CAREERCLAW_LLM_PROVIDER`                   | —        | `anthropic` or `openai` (inferred from key when not set)                              |
+| `CAREERCLAW_DIR`                            | —        | Override runtime directory (default: `.careerclaw`)                                   |
+| `HN_WHO_IS_HIRING_ID`                       | —        | Override HN thread ID (updated monthly)                                               |
+| `CAREERCLAW_SERPAPI_API_KEY`                | —        | SerpApi key — enables Google Jobs aggregator when set                                 |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_ENABLED`    | `false`  | Explicitly enable/disable the SerpApi source (`true` auto-set when key is present)    |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_MAX_PAGES`  | `1`      | Pages per run (1–5). Each page ~10 results.                                           |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_RADIUS_KM`  | `161`    | Operator hard cap on location radius (~100 mi). User's `location_radius_km` is capped here. |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_GL`         | `us`     | Google country domain for job results                                                 |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_HL`         | `en`     | UI language for job results                                                           |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_NO_CACHE`   | `false`  | Bypass SerpApi's 1-hour cache (consumes search credits)                               |
 
 Copy .env.example to .env and fill in your values.
 
@@ -301,7 +339,7 @@ npm run lint
 #### ### Smoke tests (live network — run before release)
 
 ```bash
-npm run smoke:sources    # RemoteOK + HN connectivity
+npm run smoke:sources    # RemoteOK, HN, and SerpApi connectivity (SerpApi skipped when not configured)
 npm run smoke:briefing   # Full pipeline end-to-end
 npm run smoke:llm        # LLM keys + Pro license validation
 ```
@@ -310,7 +348,7 @@ npm run smoke:llm        # LLM keys + Pro license validation
 ```
 careerclaw-js/
 ├── src/
-│   ├── adapters/       # RemoteOK RSS + HN Firebase adapters
+│   ├── adapters/       # RemoteOK RSS, HN Firebase, and SerpApi Google Jobs adapters
 │   ├── core/           # Shared text processing
 │   ├── matching/       # Scoring engine
 │   ├── tests/          # Vitest test suite (270 tests, fully offline)
@@ -345,7 +383,7 @@ careerclaw-js is built on a local-first architecture.
 - API keys never stored. Keys are read from the environment at runtime only.
 - License cache is hash-only. Only SHA-256 of the license key is written to disk.
 - LLM privacy. Only extracted keyword signals sent to the LLM — never raw resume text.
-- External calls: remoteok.com, hacker-news.firebaseio.com, api.gumroad.com, and your configured LLM provider (using your own key).
+- External calls: remoteok.com, hacker-news.firebaseio.com, api.gumroad.com, serpapi.com (only when SerpApi is enabled), and your configured LLM provider (using your own key).
 
 See SECURITY.md for the vulnerability disclosure policy.
 

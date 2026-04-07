@@ -8,7 +8,7 @@
 import type { ResumeIntelligence, UserProfile, BriefingResult } from "./models.js";
 import { buildResumeIntelligence } from "./resume-intel.js";
 import { runBriefing, runBriefingWithContext } from "./briefing.js";
-import type { FetchResult } from "./sources.js";
+import type { FetchJobsFn, FetchResult } from "./sources.js";
 import { TrackingRepository } from "./tracking.js";
 import type { EnhanceOptions } from "./llm-enhance.js";
 import type { CheckLicenseOptions } from "./license.js";
@@ -26,7 +26,7 @@ export interface CareerClawRunInput {
 }
 
 export interface CareerClawRunSupportOptions {
-  fetchFn?: () => Promise<FetchResult>;
+  fetchFn?: FetchJobsFn;
   repo?: TrackingRepository;
   resumeIntel?: ResumeIntelligence;
   enhanceFetchFn?: EnhanceOptions["fetchFn"];

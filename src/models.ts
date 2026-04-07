@@ -23,7 +23,7 @@ export type ApplicationStatus =
 export type WorkMode = "remote" | "hybrid" | "onsite" | "any";
 
 /** Canonical source identifiers for job listings. */
-export type JobSource = "remoteok" | "hackernews" | "unknown";
+export type JobSource = "remoteok" | "hackernews" | "serpapi_google_jobs" | "unknown";
 
 // ---------------------------------------------------------------------------
 // Core domain types
@@ -78,6 +78,19 @@ export interface UserProfile {
   resume_summary: string | null;
   /** City / region string used for location scoring. */
   location: string | null;
+  /**
+   * Search radius in **kilometres** for location-based job sources (e.g. SerpApi).
+   * Only applied when `work_mode` is not `"remote"` and a `location` is set.
+   *
+   * The operator env var `CAREERCLAW_SERPAPI_GOOGLE_JOBS_RADIUS_KM` acts as a
+   * hard cap — effective radius is `min(location_radius_km, cap)`.
+   * Defaults to the operator cap when null.
+   *
+   * **ClawOS integration note:** the settings UI presents radius in **miles**.
+   * The worker adapter must convert before populating this field:
+   * `location_radius_km = Math.round(radiusMiles * 1.60934)`
+   */
+  location_radius_km: number | null;
   /** Minimum acceptable annual salary in USD. */
   salary_min: number | null;
 }
@@ -327,6 +340,7 @@ export function emptyProfile(): UserProfile {
     work_mode: null,
     resume_summary: null,
     location: null,
+    location_radius_km: null,
     salary_min: null,
   };
 }

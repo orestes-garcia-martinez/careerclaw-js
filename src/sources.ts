@@ -1,17 +1,18 @@
 /**
- * sources.ts — Source aggregation layer.
+ * sources.ts — Source aggregation and deduplication for CareerClaw.
  *
- * `fetchAllJobs()` is the single entry point for the briefing pipeline.
- * It calls both adapters independently (per-source error isolation), merges
- * results, and deduplicates by `job_id` (first-seen wins).
- *
- * Downstream layers (matching engine, gap analysis) are source-agnostic —
- * they only see `NormalizedJob[]`.
+ * `fetchAllJobs(profile)` is the single entry point for the briefing pipeline.
+ * Each adapter is isolated so one source failure does not fail the entire run.
  */
 
-import type { NormalizedJob, JobSource } from "./models.js";
+import type { NormalizedJob, JobSource, UserProfile } from "./models.js";
 import { fetchRemoteOkJobs } from "./adapters/remoteok.js";
 import { fetchHnJobs } from "./adapters/hackernews.js";
+import { fetchSerpApiGoogleJobs } from "./adapters/serpapi-google-jobs.js";
+import {
+  HN_WHO_IS_HIRING_ID,
+  SERPAPI_GOOGLE_JOBS_ENABLED,
+} from "./config.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,49 +20,30 @@ import { fetchHnJobs } from "./adapters/hackernews.js";
 
 export interface FetchResult {
   jobs: NormalizedJob[];
-  /** Per-source job counts for run instrumentation. */
   counts: Partial<Record<JobSource, number>>;
-  /** Per-source errors — non-empty means a source was degraded. */
   errors: Partial<Record<JobSource, string>>;
 }
+
+export type FetchJobsFn = (profile: UserProfile) => Promise<FetchResult>;
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-/**
- * Fetch jobs from all configured sources and return a deduplicated list.
- *
- * Failures in individual sources are caught and recorded in `errors` —
- * the pipeline continues with whatever sources succeeded. This mirrors
- * the Python careerclaw per-source resilience pattern.
- */
-export async function fetchAllJobs(): Promise<FetchResult> {
+export async function fetchAllJobs(profile: UserProfile): Promise<FetchResult> {
   const counts: Partial<Record<JobSource, number>> = {};
   const errors: Partial<Record<JobSource, string>> = {};
   const allJobs: NormalizedJob[] = [];
 
-  // Run both adapters concurrently; isolate failures per source
-  const [remoteokResult, hnResult] = await Promise.allSettled([
+  const jobsBySource = await Promise.allSettled([
     fetchRemoteOkJobs(),
-    fetchHnJobs(),
+    fetchHnJobs(HN_WHO_IS_HIRING_ID),
+    fetchSerpApiJobsIfEnabled(profile),
   ]);
 
-  if (remoteokResult.status === "fulfilled") {
-    counts["remoteok"] = remoteokResult.value.length;
-    allJobs.push(...remoteokResult.value);
-  } else {
-    errors["remoteok"] = String(remoteokResult.reason);
-    counts["remoteok"] = 0;
-  }
-
-  if (hnResult.status === "fulfilled") {
-    counts["hackernews"] = hnResult.value.length;
-    allJobs.push(...hnResult.value);
-  } else {
-    errors["hackernews"] = String(hnResult.reason);
-    counts["hackernews"] = 0;
-  }
+  collectSourceResult("remoteok", jobsBySource[0], counts, errors, allJobs);
+  collectSourceResult("hackernews", jobsBySource[1], counts, errors, allJobs);
+  collectSourceResult("serpapi_google_jobs", jobsBySource[2], counts, errors, allJobs);
 
   return {
     jobs: deduplicate(allJobs),
@@ -76,7 +58,7 @@ export async function fetchAllJobs(): Promise<FetchResult> {
 
 /**
  * Deduplicate a list of jobs by `job_id`.
- * First-seen wins — preserves RemoteOK order before HN order.
+ * First-seen wins — preserves source ordering.
  */
 export function deduplicate(jobs: NormalizedJob[]): NormalizedJob[] {
   const seen = new Set<string>();
@@ -88,4 +70,33 @@ export function deduplicate(jobs: NormalizedJob[]): NormalizedJob[] {
     }
   }
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+async function fetchSerpApiJobsIfEnabled(profile: UserProfile): Promise<NormalizedJob[]> {
+  if (!SERPAPI_GOOGLE_JOBS_ENABLED) {
+    return [];
+  }
+
+  return fetchSerpApiGoogleJobs(profile);
+}
+
+function collectSourceResult(
+  source: JobSource,
+  settled: PromiseSettledResult<NormalizedJob[]>,
+  counts: Partial<Record<JobSource, number>>,
+  errors: Partial<Record<JobSource, string>>,
+  allJobs: NormalizedJob[],
+): void {
+  if (settled.status === "fulfilled") {
+    counts[source] = settled.value.length;
+    allJobs.push(...settled.value);
+    return;
+  }
+
+  counts[source] = 0;
+  errors[source] = settled.reason instanceof Error ? settled.reason.message : String(settled.reason);
 }

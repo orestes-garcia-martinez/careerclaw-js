@@ -17,6 +17,16 @@ describe("config defaults", () => {
 		expect(HN_API_BASE).toContain("hacker-news.firebaseio.com");
 	});
 
+	it("exports SerpApi base URL pointing to serpapi.com", async () => {
+		const { SERPAPI_API_BASE } = await import("../config.js");
+		expect(SERPAPI_API_BASE).toContain("serpapi.com");
+	});
+
+	it("defaults SerpApi Google Jobs max pages to at least 1", async () => {
+		const { SERPAPI_GOOGLE_JOBS_MAX_PAGES } = await import("../config.js");
+		expect(SERPAPI_GOOGLE_JOBS_MAX_PAGES).toBeGreaterThan(0);
+	});
+
 	it("exports a positive HTTP_TIMEOUT_MS", async () => {
 		const { HTTP_TIMEOUT_MS } = await import("../config.js");
 		expect(HTTP_TIMEOUT_MS).toBeGreaterThan(0);
