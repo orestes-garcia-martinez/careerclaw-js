@@ -6,6 +6,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.10.1](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.10.0...careerclaw-js-v1.10.1) (2026-04-07)
+
+
+### Bug Fixes
+
+* **matching:** add design/ux taxonomy domain and fix phantom concept expansion ([#74](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/74)) ([64c41ce](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/64c41ce62910b5fbdac515ef7af4e9fc7bb9c7e1))
+
 ## [1.10.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.9.0...careerclaw-js-v1.10.0) (2026-04-07)
 
 
