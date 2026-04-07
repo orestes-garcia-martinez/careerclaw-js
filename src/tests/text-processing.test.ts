@@ -50,6 +50,13 @@ describe("STOPWORDS", () => {
       expect(STOPWORDS.has(word)).toBe(false);
     }
   });
+
+  it("does NOT filter domain nouns that carry matching signal", () => {
+    // "product" was incorrectly a stopword — it is a meaningful domain term
+    // for roles like "Product Designer" and "Product Manager".
+    expect(STOPWORDS.has("product")).toBe(false);
+    expect(STOPWORDS.has("products")).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------

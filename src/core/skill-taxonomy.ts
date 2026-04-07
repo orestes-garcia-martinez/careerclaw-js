@@ -230,6 +230,64 @@ export const SKILL_TAXONOMY: Record<string, SkillNode> = {
     parent: "trades",
   },
 
+  // Design / UX
+  "figma": {
+    aliases: [],
+    related: ["sketch", "adobe xd", "invision", "prototyping", "ui design", "wireframing"],
+    parent: "design",
+  },
+  "sketch": {
+    aliases: [],
+    related: ["figma", "adobe xd", "ui design", "wireframing"],
+    parent: "design",
+  },
+  "storybook": {
+    aliases: [],
+    related: ["design systems", "component library", "frontend"],
+    parent: "design",
+  },
+  "product design": {
+    aliases: ["product designer"],
+    related: ["ux design", "ui design", "interaction design", "design systems", "user experience"],
+    parent: "design",
+  },
+  "ux design": {
+    aliases: ["ux", "user experience design", "user experience", "uxd"],
+    related: ["product design", "interaction design", "ui design", "ux research", "usability", "wireframing", "prototyping"],
+    parent: "design",
+  },
+  "ui design": {
+    aliases: ["ui", "user interface design", "user interface"],
+    related: ["ux design", "figma", "design systems", "frontend"],
+    parent: "design",
+  },
+  "design systems": {
+    aliases: ["design system"],
+    related: ["component library", "storybook", "figma", "ui design"],
+    parent: "design",
+  },
+  "ux research": {
+    aliases: ["user research", "usability research", "ux researcher", "user experience research"],
+    related: ["usability testing", "user interviews", "ux design"],
+    parent: "design",
+  },
+  "interaction design": {
+    aliases: ["ixd"],
+    related: ["ux design", "ui design", "prototyping", "wireframing"],
+    parent: "design",
+  },
+  "accessibility": {
+    aliases: ["a11y", "wcag", "web accessibility"],
+    related: ["inclusive design", "aria", "keyboard navigation", "screen reader"],
+    credentials: ["cpacc", "was"],
+    parent: "design",
+  },
+  "information architecture": {
+    aliases: ["ia"],
+    related: ["ux design", "navigation design", "wireframing", "content strategy"],
+    parent: "design",
+  },
+
   // Sales / marketing / HR
   "digital marketing": {
     aliases: ["online marketing", "internet marketing"],

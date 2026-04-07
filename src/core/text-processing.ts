@@ -74,7 +74,7 @@ export const STOPWORDS: ReadonlySet<string> = new Set([
   "seeking", "looking", "plus", "bonus", "nice-to-have", "preferred",
   "required", "requirement", "requirements", "experience", "years",
   "role", "roles", "position", "positions", "team", "teams", "company",
-  "companies", "business", "businesses", "product", "products",
+  "companies", "business", "businesses",
   "mission", "vision", "values", "culture", "environment", "office",
   "full-time", "part-time", "contract", "permanent", "temporary",
   "salary", "compensation", "equity", "stock", "options", "remote",

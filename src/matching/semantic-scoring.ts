@@ -78,13 +78,27 @@ export function buildProfileSemanticView(
     }
   };
 
+  // Narrative prose (full resume text) contributes tokens and phrases for
+  // lexical overlap, but must NOT feed taxonomy concept extraction. Resume
+  // text frequently mentions skills the user doesn't own — e.g. "Worked
+  // closely with PM" — which would inject phantom taxonomy clusters
+  // (project management, planning, scheduling) into the profile signal.
+  const addNarrativeText = (text: string, weight: number): void => {
+    for (const token of tokenizeUnique(text)) {
+      lexicalWeights.set(token, Math.max(weight, lexicalWeights.get(token) ?? 0));
+    }
+    for (const phrase of extractPhrasesFromText(text)) {
+      semanticPhrases.add(phrase);
+    }
+  };
+
   addText(profile.skills.join(" "), 1.0);
   addText(expandSkills(profile.skills).join(" "), 0.9);
   addText(profile.target_roles.join(" "), 0.9);
   addText(profile.resume_summary ?? "", 0.75);
 
   if (options.resumeText?.trim()) {
-    addText(options.resumeText, 0.55);
+    addNarrativeText(options.resumeText, 0.55);
   }
 
   if (options.resumeIntel) {
