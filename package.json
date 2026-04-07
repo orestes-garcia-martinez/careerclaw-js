@@ -24,7 +24,7 @@
     "debugging:llm-response": "npx tsx --env-file=.env scripts/debug_llm_response.ts",
     "cli": "tsx src/cli.ts --profile .careerclaw/profile.json --resume-txt .careerclaw/resume.txt --dry-run",
     "cli:enhanced": "npx tsx --env-file=.env src/cli.ts --json --dry-run",
-    "prepare": "husky"
+    "prepare": "npm run build && (husky || true)"
   },
   "files": [
     "dist",
