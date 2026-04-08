@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.11.0...careerclaw-js-v1.11.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* **embedding:** chunk ONNX inference to prevent OOM on large job lists ([#84](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/84)) ([f6f1b15](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/f6f1b15f4ca5a5217382b20f76f03c539abd02ac))
+
 ## [1.11.1] (2026-04-08)
 
 ### Bug Fixes
