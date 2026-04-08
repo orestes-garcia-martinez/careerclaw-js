@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.11.1] (2026-04-08)
+
+### Bug Fixes
+
+- **embedding:** chunk ONNX inference into batches of 8 to prevent OOM on constrained instances — a single forward pass over 50+ jobs caused activation tensors to exceed available memory on 2 GB hosts; sequential 8-text chunks cap per-pass memory to ~18 MB regardless of job count
+
 ## [1.11.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.10.1...careerclaw-js-v1.11.0) (2026-04-08)
 
 
