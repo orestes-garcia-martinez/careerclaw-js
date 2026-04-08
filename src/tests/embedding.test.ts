@@ -273,10 +273,12 @@ describe("rankJobsWithEmbeddings", () => {
   });
 
   it("ranks the semantically similar job above the dissimilar one", async () => {
+    // minKeywordScore: 0 to bypass the lexical gate — this test verifies
+    // ordering by embedding similarity, not the gate threshold.
     const results = await rankJobsWithEmbeddings(
       [designJob, pmJob],
       profile,
-      { embeddingProvider: provider },
+      { embeddingProvider: provider, minKeywordScore: 0 },
     );
 
     expect(results.length).toBe(2);
