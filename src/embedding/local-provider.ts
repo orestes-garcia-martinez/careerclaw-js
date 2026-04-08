@@ -13,6 +13,12 @@
  *   - `allowRemoteModels = false` guarantees no network downloads at runtime.
  *   - If the model directory is missing or corrupted, initialize() throws
  *     and the singleton falls back to hybrid-only scoring.
+ *
+ * Dimension safety:
+ *   - `dimensions` is derived from the model's actual output during
+ *     initialize() rather than hardcoded. A probe embed is run immediately
+ *     after the pipeline loads so that any model — regardless of its output
+ *     size — slices tensors at the correct stride in embed().
  */
 
 import type { EmbeddingProvider } from "./provider.js";
@@ -23,22 +29,26 @@ import type { EmbeddingProvider } from "./provider.js";
 type Pipeline = (texts: string | string[], opts: Record<string, unknown>) => Promise<any>;
 
 export class LocalEmbeddingProvider implements EmbeddingProvider {
-  readonly dimensions: number;
+  // Set to the real value after initialize() completes.
+  // Reading this before initialize() will throw (pipe guard fires first).
+  dimensions: number = 0;
   readonly modelName: string;
 
   private pipe: Pipeline | null = null;
 
-  constructor(
-    modelName: string = "Xenova/all-MiniLM-L6-v2",
-    dimensions: number = 384,
-  ) {
+  constructor(modelName: string = "Xenova/all-MiniLM-L6-v2") {
     this.modelName = modelName;
-    this.dimensions = dimensions;
   }
 
   /**
-   * Load the model from `modelDir`. Must be called once before `embed()`.
-   * Reads model files from disk — no network access.
+   * Load the model from `modelDir` and detect its output dimensionality.
+   * Must be called once before `embed()`. Reads model files from disk —
+   * no network access.
+   *
+   * A single probe embed ("probe") is run immediately after the pipeline
+   * loads so that `output.dims[1]` is available to set `this.dimensions`
+   * before any real batch is processed. This guarantees correct tensor
+   * slicing for every model regardless of its output size.
    *
    * @throws If the model is not found in `modelDir`.
    */
@@ -52,11 +62,19 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
     this.pipe = await pipeline("feature-extraction", this.modelName, {
       quantized: true, // use model_quantized.onnx (~22 MB for MiniLM)
     }) as Pipeline;
+
+    // Derive real output dimensions from the model rather than assuming 384.
+    // Any model — MiniLM (384), mpnet-base (768), etc. — will be handled
+    // correctly without touching config or constructor arguments.
+    const probe = await this.pipe(["probe"], { pooling: "mean", normalize: true });
+    this.dimensions = probe.dims[1] as number;
   }
 
   /**
    * Embed a batch of texts in a single ONNX forward pass.
    * Returns one L2-normalized Float32Array per input text.
+   * Tensor stride is read from `output.dims[1]` on every call —
+   * consistent with the dimensions derived during initialize().
    */
   async embed(texts: string[]): Promise<Float32Array[]> {
     if (!this.pipe) {
@@ -69,9 +87,10 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
 
     const output = await this.pipe(texts, { pooling: "mean", normalize: true });
 
-    // output.data: Float32Array of length texts.length * dimensions
-    // output.dims: [texts.length, dimensions]
-    const dims = this.dimensions;
+    // Use output.dims[1] as the authoritative stride for this call.
+    // This matches this.dimensions (set during initialize) and is safe
+    // even if called with a single-text batch where dims may be [1, N].
+    const dims = output.dims[1] as number;
     const vectors: Float32Array[] = [];
     for (let i = 0; i < texts.length; i++) {
       vectors.push(output.data.slice(i * dims, (i + 1) * dims) as Float32Array);

@@ -3,13 +3,11 @@
  *
  * Run once on the target server after deploying careerclaw-js:
  *
- *   node node_modules/careerclaw-js/dist/scripts/download-model.js
+ *   node --env-file=.env node_modules/careerclaw-js/dist/scripts/download-model.js
  *
- * Reads configuration from environment variables (or .env file when
- * launched via `node --env-file=.env dist/scripts/download-model.js`):
- *
- *   CAREERCLAW_EMBEDDING_MODEL_DIR   Target directory (required)
- *   CAREERCLAW_EMBEDDING_MODEL       Model name (default: Xenova/all-MiniLM-L6-v2)
+ * Configuration is read from the same env vars and defaults as the runtime
+ * (CAREERCLAW_EMBEDDING_MODEL_DIR, CAREERCLAW_EMBEDDING_MODEL), so the
+ * downloaded model is always in the location the worker expects.
  *
  * The model files are written to:
  *   <CAREERCLAW_EMBEDDING_MODEL_DIR>/<org>/<model-name>/
@@ -17,20 +15,19 @@
  * This directory persists across npm installs — it is entirely independent
  * of the careerclaw-js package lifecycle.
  *
- * After download, set in your worker .env:
+ * After download, ensure your worker .env contains:
  *   CAREERCLAW_EMBEDDING_PROVIDER=local
- *   CAREERCLAW_EMBEDDING_MODEL_DIR=<same path used here>
+ *   CAREERCLAW_EMBEDDING_MODEL_DIR=<same value used here>
  */
 
-import { join } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
+import { EMBEDDING_MODEL_DIR, EMBEDDING_MODEL_NAME } from "../config.js";
 
-const modelDir =
-  process.env["CAREERCLAW_EMBEDDING_MODEL_DIR"] ??
-  join(process.env["HOME"] ?? process.cwd(), "careerclaw-workspace", "models");
-
-const modelName =
-  process.env["CAREERCLAW_EMBEDDING_MODEL"] ?? "Xenova/all-MiniLM-L6-v2";
+// Re-use the exact same defaults as the runtime so the paths always match.
+// If CAREERCLAW_EMBEDDING_MODEL_DIR is unset, both this script and
+// warmEmbeddingProvider() resolve to the same HOME-relative path.
+const modelDir = EMBEDDING_MODEL_DIR;
+const modelName = EMBEDDING_MODEL_NAME;
 
 async function main(): Promise<void> {
   console.log(`[careerclaw] Downloading model: ${modelName}`);
@@ -44,7 +41,7 @@ async function main(): Promise<void> {
   const { env, pipeline } = await import("@xenova/transformers");
 
   env.cacheDir = modelDir;
-  env.allowRemoteModels = true;  // allow download — this is the setup script
+  env.allowRemoteModels = true; // allow download — this is the setup script
   env.allowLocalModels = true;
 
   console.log("[careerclaw] Fetching model files from Hugging Face Hub...");
@@ -52,7 +49,7 @@ async function main(): Promise<void> {
   await pipeline("feature-extraction", modelName, { quantized: true });
 
   console.log("[careerclaw] Model downloaded successfully.");
-  console.log(`[careerclaw] Add to your worker .env:`);
+  console.log("[careerclaw] Add to your worker .env:");
   console.log(`  CAREERCLAW_EMBEDDING_PROVIDER=local`);
   console.log(`  CAREERCLAW_EMBEDDING_MODEL_DIR=${modelDir}`);
 }

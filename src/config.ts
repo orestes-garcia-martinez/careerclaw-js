@@ -166,7 +166,7 @@ export const EMBEDDING_PROVIDER: "local" | "none" =
  */
 export const EMBEDDING_MODEL_DIR: string =
   process.env["CAREERCLAW_EMBEDDING_MODEL_DIR"] ??
-  join(process.cwd(), "careerclaw-workspace", "models");
+  join(process.env["HOME"] ?? process.cwd(), "careerclaw-workspace", "models");
 
 /** Hugging Face model identifier used by the local provider. */
 export const EMBEDDING_MODEL_NAME: string =
