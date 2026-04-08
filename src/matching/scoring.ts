@@ -31,7 +31,8 @@ import {
   computeSemanticScore,
   weightedOverlapScore,
 } from "./semantic-scoring.js";
-import { SEMANTIC_MATCHING } from "../config.js";
+import { cosineSimilarity } from "../embedding/cosine.js";
+import { EMBEDDING_MATCHING, SEMANTIC_MATCHING } from "../config.js";
 
 /**
  * Quality dimension weights — applied AFTER the keyword signal multiplier.
@@ -57,6 +58,10 @@ if (Math.abs(_weightSum - 1.0) > 1e-9) {
 export interface HybridMatchBreakdown extends MatchBreakdown {
   lexical_keyword: number;
   semantic: number;
+}
+
+export interface EmbeddingMatchBreakdown extends MatchBreakdown {
+  embedding: number;
 }
 
 /**
@@ -254,6 +259,59 @@ export function compositeScoreHybrid(
     },
     matched: [...new Set([...lexicalEnhanced.matched, ...semantic.matched])],
     gaps: [...new Set([...lexicalEnhanced.gaps, ...semantic.gaps])],
+  };
+}
+
+/**
+ * Compute composite score using pre-computed embedding vectors.
+ *
+ * Formula:
+ *   signalInput = lexical × 0.3 + embedding_cosine × 0.7
+ *   total       = sqrt(signalInput) × qualityBase
+ *
+ * The lexical score (Jaccard) still serves as the keyword gate signal
+ * (`breakdown.keyword`) and anchors exact technology term matches.
+ * The embedding cosine similarity provides the dominant semantic signal
+ * without requiring a hand-curated taxonomy.
+ *
+ * Vectors must be L2-normalized (produced by LocalEmbeddingProvider
+ * with `normalize: true`), so cosine similarity equals the dot product.
+ */
+export function compositeScoreWithEmbedding(
+  profile: UserProfile,
+  job: NormalizedJob,
+  profileVec: Float32Array,
+  jobVec: Float32Array,
+): {
+  total: number;
+  breakdown: EmbeddingMatchBreakdown;
+  matched: string[];
+  gaps: string[];
+} {
+  const kw = scoreKeyword(profile, job);
+  const embed = cosineSimilarity(profileVec, jobVec);
+
+  const experience = scoreExperience(profile, job);
+  const salary = scoreSalary(profile, job);
+  const work_mode = scoreWorkMode(profile, job);
+
+  const qualityBase =
+    experience * QUALITY_WEIGHTS.experience +
+    salary     * QUALITY_WEIGHTS.salary +
+    work_mode  * QUALITY_WEIGHTS.work_mode;
+
+  const signalInput =
+    kw.score * EMBEDDING_MATCHING.WEIGHTS.LEXICAL +
+    embed    * EMBEDDING_MATCHING.WEIGHTS.SEMANTIC;
+
+  const signal = Math.sqrt(signalInput);
+  const total = roundScore(signal * qualityBase);
+
+  return {
+    total,
+    breakdown: { keyword: kw.score, embedding: embed, experience, salary, work_mode },
+    matched: kw.matched,
+    gaps: kw.gaps,
   };
 }
 

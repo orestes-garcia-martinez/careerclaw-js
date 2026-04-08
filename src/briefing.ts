@@ -25,7 +25,8 @@ import type {
   GapAnalysisResult,
 } from "./models.js";
 import { fetchAllJobs, type FetchJobsFn, type FetchResult } from "./sources.js";
-import { rankJobs, rankJobsHybrid } from "./matching/index.js";
+import { rankJobs, rankJobsHybrid, rankJobsWithEmbeddings } from "./matching/index.js";
+import { getActiveEmbeddingProvider } from "./embedding/index.js";
 import { draftOutreach, buildTemplateCoverLetter } from "./drafting.js";
 import {
   enhanceDraft,
@@ -171,8 +172,15 @@ async function runBriefingInternal(
   const { jobs, counts: sourceCounts } = fetchResult;
 
   const rankStart = Date.now();
+  const embeddingProvider = getActiveEmbeddingProvider();
   const matches: ScoredJob[] = jobs.length === 0
     ? []
+    : embeddingProvider
+    ? await rankJobsWithEmbeddings(jobs, profile, {
+        embeddingProvider,
+        limit: clampedTopK,
+        ...(resumeText !== undefined ? { resumeText } : {}),
+      })
     : SEMANTIC_MATCHING.ENABLED
     ? await rankJobsHybrid(jobs, profile, {
         limit: clampedTopK,

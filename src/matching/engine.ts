@@ -25,7 +25,9 @@ import type {
   ScoredJob,
 } from "../models.js";
 import { DEFAULT_TOP_K } from "../config.js";
-import { compositeScore, compositeScoreHybrid } from "./scoring.js";
+import { compositeScore, compositeScoreHybrid, compositeScoreWithEmbedding } from "./scoring.js";
+import type { EmbeddingProvider } from "../embedding/provider.js";
+import { buildProfileEmbeddingText, buildJobEmbeddingText } from "../embedding/text-builder.js";
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -62,7 +64,6 @@ export function rankJobs(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
-
 
 /**
  * Hybrid variant of rankJobs that layers taxonomy-expanded lexical scoring
@@ -103,6 +104,58 @@ export async function rankJobsHybrid(
         matched_keywords: matched,
         gap_keywords: gaps,
       };
+    })
+    .filter((scored) => scored.breakdown.keyword >= minKeywordScore)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+/**
+ * Embedding variant of rankJobs.
+ *
+ * Scores every job against the user profile using a blend of lexical
+ * overlap (30%) and embedding cosine similarity (70%). The embedding
+ * provider must already be initialized (via warmEmbeddingProvider).
+ *
+ * All job texts are embedded in a single batch call before scoring —
+ * one ONNX forward pass for all N jobs, not N sequential calls.
+ */
+export async function rankJobsWithEmbeddings(
+  jobs: NormalizedJob[],
+  profile: UserProfile,
+  options: {
+    embeddingProvider: EmbeddingProvider;
+    resumeText?: string;
+    limit?: number;
+    minKeywordScore?: number;
+  },
+): Promise<ScoredJob[]> {
+  const {
+    embeddingProvider,
+    resumeText,
+    limit = DEFAULT_TOP_K,
+    minKeywordScore = 0.01,
+  } = options;
+
+  const profileText = buildProfileEmbeddingText(profile, resumeText);
+  const jobTexts = jobs.map(buildJobEmbeddingText);
+
+  // Single ONNX forward pass: profile + all N jobs in one call
+  const allVectors = await embeddingProvider.embed([profileText, ...jobTexts]);
+
+  const profileVec = allVectors[0]!;
+  const jobVecs = allVectors.slice(1);
+
+  return jobs
+    .map((job, i): ScoredJob => {
+      const jobVec = jobVecs[i]!;
+      const { total, breakdown, matched, gaps } = compositeScoreWithEmbedding(
+        profile,
+        job,
+        profileVec,
+        jobVec,
+      );
+      return { job, score: total, breakdown, matched_keywords: matched, gap_keywords: gaps };
     })
     .filter((scored) => scored.breakdown.keyword >= minKeywordScore)
     .sort((a, b) => b.score - a.score)

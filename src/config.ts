@@ -9,6 +9,7 @@
 
 import { join } from "node:path";
 
+
 // ---------------------------------------------------------------------------
 // Runtime directory
 // ---------------------------------------------------------------------------
@@ -143,6 +144,49 @@ export const FREE_TOP_K = 3;
 
 /** Maximum topK for Pro tier users. */
 export const PRO_TOP_K = 10;
+
+// ---------------------------------------------------------------------------
+// Embedding provider (optional local ONNX model)
+// ---------------------------------------------------------------------------
+
+/**
+ * Which embedding backend to activate.
+ *
+ * "local"  → LocalEmbeddingProvider (@xenova/transformers, ONNX).
+ *            Requires the model to be pre-downloaded to EMBEDDING_MODEL_DIR.
+ * "none"   → Embedding disabled; briefing uses rankJobsHybrid (default).
+ */
+export const EMBEDDING_PROVIDER: "local" | "none" =
+  process.env["CAREERCLAW_EMBEDDING_PROVIDER"] === "local" ? "local" : "none";
+
+/**
+ * Filesystem path where the ONNX model files are stored.
+ * Must be pre-populated via `scripts/download-model.ts`.
+ * Survives npm installs — lives outside node_modules.
+ */
+export const EMBEDDING_MODEL_DIR: string =
+  process.env["CAREERCLAW_EMBEDDING_MODEL_DIR"] ??
+  join(process.cwd(), "careerclaw-workspace", "models");
+
+/** Hugging Face model identifier used by the local provider. */
+export const EMBEDDING_MODEL_NAME: string =
+  process.env["CAREERCLAW_EMBEDDING_MODEL"] ?? "Xenova/all-MiniLM-L6-v2";
+
+/**
+ * Signal blend weights for the embedding scoring path.
+ *
+ *   signalInput = lexical × LEXICAL + embedding × SEMANTIC
+ *
+ * Lexical overlap (0.3) still anchors exact technology term matches
+ * (e.g., "figma", "postgres"). Embedding cosine similarity (0.7)
+ * dominates the semantic signal — no taxonomy required.
+ */
+export const EMBEDDING_MATCHING = {
+  WEIGHTS: {
+    LEXICAL: 0.3,
+    SEMANTIC: 0.7,
+  },
+} as const;
 
 // ---------------------------------------------------------------------------
 // Semantic matching

@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.11.0] (2026-04-07)
+
+### Features
+
+- **embedding:** add optional local ONNX embedding provider (`CAREERCLAW_EMBEDDING_PROVIDER=local`) — loads `Xenova/all-MiniLM-L6-v2` from a pre-downloaded model directory at worker startup; model stays in memory across all requests
+- **embedding:** `warmEmbeddingProvider()` exported for host process startup; falls back to hybrid-only scoring with a logged warning when the model directory is missing
+- **embedding:** `rankJobsWithEmbeddings()` — single ONNX forward pass embeds all N jobs in one batch call; cosine similarity (70%) blended with lexical overlap (30%) replaces taxonomy-based semantic scoring when provider is active
+- **embedding:** `compositeScoreWithEmbedding()` — new scoring path; `breakdown` includes `embedding` field alongside existing `keyword`, `experience`, `salary`, `work_mode`
+- **embedding:** `buildProfileEmbeddingText()` / `buildJobEmbeddingText()` — deterministic text representations for embedding (target_roles + skills + summary + resumeText[:500] | title + description[:1000])
+- **scripts:** `dist/scripts/download-model.js` (bin: `careerclaw-download-model`) — one-time model download script; reads `CAREERCLAW_EMBEDDING_MODEL_DIR` and `CAREERCLAW_EMBEDDING_MODEL` from env; sets `allowRemoteModels=false` after download so runtime never fetches from network
+- **config:** three new env vars — `CAREERCLAW_EMBEDDING_PROVIDER` (`local`|`none`, default `none`), `CAREERCLAW_EMBEDDING_MODEL_DIR`, `CAREERCLAW_EMBEDDING_MODEL`
+- **briefing:** three-way ranking dispatch: embedding path → hybrid path → legacy lexical-only; existing `SEMANTIC_MATCHING.ENABLED` flag controls the hybrid fallback
+
 All notable changes to careerclaw-js are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
