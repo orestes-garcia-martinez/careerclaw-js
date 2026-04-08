@@ -8,3 +8,5 @@ export * from "./tracking.js";
 export * from "./sources.js";
 export * from "./gap.js";
 export * from "./llm-enhance.js";
+export { warmEmbeddingProvider, getActiveEmbeddingProvider } from "./embedding/index.js";
+export type { EmbeddingProvider } from "./embedding/index.js";

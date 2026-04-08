@@ -1,12 +1,13 @@
 {
   "name": "careerclaw-js",
-  "version": "1.10.1",
+  "version": "1.11.0",
   "description": "AI-powered job search automation for ClawOS, with a standalone Node.js runtime for local/manual workflows",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "careerclaw-js": "dist/cli.js"
+    "careerclaw-js": "dist/cli.js",
+    "careerclaw-download-model": "dist/scripts/download-model.js"
   },
   "scripts": {
     "build": "tsc",
@@ -59,6 +60,7 @@
     "vitest": "^2.0.0"
   },
   "dependencies": {
+    "@xenova/transformers": "^2.17.0",
     "fast-xml-parser": "^5.5.7"
   },
   "exports": {
@@ -69,6 +71,9 @@
     "./cli": {
       "types": "./dist/cli.d.ts",
       "import": "./dist/cli.js"
+    },
+    "./scripts/download-model": {
+      "import": "./dist/scripts/download-model.js"
     },
     "./package.json": "./package.json"
   }

@@ -4,7 +4,7 @@
  * Import from here rather than individual files.
  */
 
-export { rankJobs, rankJobsHybrid } from "./engine.js";
+export { rankJobs, rankJobsHybrid, rankJobsWithEmbeddings } from "./engine.js";
 export {
   scoreKeyword,
   scoreExperience,
@@ -13,4 +13,6 @@ export {
   compositeScore,
   scoreKeywordEnhanced,
   compositeScoreHybrid,
+  compositeScoreWithEmbedding,
 } from "./scoring.js";
+export type { EmbeddingMatchBreakdown } from "./scoring.js";
