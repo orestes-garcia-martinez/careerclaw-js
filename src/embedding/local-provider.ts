@@ -36,6 +36,11 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
 
   private pipe: Pipeline | null = null;
 
+  // Maximum number of texts per ONNX forward pass. Keeping batches small
+  // bounds the activation tensor size during inference (~18 MB at 8 texts ×
+  // 256 tokens × 384 dims) and prevents OOM on constrained instances.
+  private static readonly BATCH_SIZE = 8;
+
   constructor(modelName: string = "Xenova/all-MiniLM-L6-v2") {
     this.modelName = modelName;
   }
@@ -71,10 +76,16 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
   }
 
   /**
-   * Embed a batch of texts in a single ONNX forward pass.
-   * Returns one L2-normalized Float32Array per input text.
-   * Tensor stride is read from `output.dims[1]` on every call —
-   * consistent with the dimensions derived during initialize().
+   * Embed a list of texts and return one L2-normalized Float32Array per input.
+   *
+   * Inputs are processed in sequential chunks of BATCH_SIZE to keep ONNX
+   * activation tensors small. A single pass over all N texts would produce
+   * a tensor of shape [N, seqLen, hiddenDim] that can OOM on constrained
+   * instances (e.g. 2 GB Lightsail) when N is large. Chunking caps the
+   * per-pass memory budget regardless of how many jobs are in the briefing.
+   *
+   * Tensor stride is read from output.dims[1] on every chunk — consistent
+   * with the dimensions derived during initialize().
    */
   async embed(texts: string[]): Promise<Float32Array[]> {
     if (!this.pipe) {
@@ -85,16 +96,19 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
     }
     if (texts.length === 0) return [];
 
-    const output = await this.pipe(texts, { pooling: "mean", normalize: true });
-
-    // Use output.dims[1] as the authoritative stride for this call.
-    // This matches this.dimensions (set during initialize) and is safe
-    // even if called with a single-text batch where dims may be [1, N].
-    const dims = output.dims[1] as number;
     const vectors: Float32Array[] = [];
-    for (let i = 0; i < texts.length; i++) {
-      vectors.push(output.data.slice(i * dims, (i + 1) * dims) as Float32Array);
+
+    for (let i = 0; i < texts.length; i += LocalEmbeddingProvider.BATCH_SIZE) {
+      const chunk = texts.slice(i, i + LocalEmbeddingProvider.BATCH_SIZE);
+      const output = await this.pipe(chunk, { pooling: "mean", normalize: true });
+
+      // Use output.dims[1] as the authoritative stride for this chunk.
+      const dims = output.dims[1] as number;
+      for (let j = 0; j < chunk.length; j++) {
+        vectors.push(output.data.slice(j * dims, (j + 1) * dims) as Float32Array);
+      }
     }
+
     return vectors;
   }
 }
