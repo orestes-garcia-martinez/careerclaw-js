@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.10.1...careerclaw-js-v1.11.0) (2026-04-08)
+
+
+### Features
+
+* **embedding:** add optional local ONNX embedding provider (v1.11.0) ([#77](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/77)) ([26fb049](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/26fb049f7e789964bfb4f79d6d8701cbd74f0c28))
+
 ## [1.11.0] (2026-04-07)
 
 ### Features
