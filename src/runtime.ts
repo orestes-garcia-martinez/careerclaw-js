@@ -5,7 +5,7 @@
  * while preserving the existing standalone CLI flow.
  */
 
-import type { ResumeIntelligence, UserProfile, BriefingResult } from "./models.js";
+import type { ResumeIntelligence, UserProfile, BriefingResult, SearchOverrides } from "./models.js";
 import { buildResumeIntelligence } from "./resume-intel.js";
 import { runBriefing, runBriefingWithContext } from "./briefing.js";
 import type { FetchJobsFn, FetchResult } from "./sources.js";
@@ -23,6 +23,12 @@ export interface CareerClawRunInput {
   coverLetterMatchIndices?: number[];
   /** 0-based indices into the matches array to run gap analysis for. */
   gapAnalysisMatchIndices?: number[];
+  /**
+   * Session-scoped search overrides — augment the profile for this run only.
+   * Takes precedence over the corresponding profile fields without mutating them.
+   * Use for agent-driven queries like "find me AI jobs" or "jobs at Google".
+   */
+  searchOverrides?: SearchOverrides;
 }
 
 export interface CareerClawRunSupportOptions {
@@ -72,6 +78,9 @@ export async function runCareerClawStandalone(
     ...(input.gapAnalysisMatchIndices !== undefined
       ? { gapAnalysisMatchIndices: input.gapAnalysisMatchIndices }
       : {}),
+    ...(input.searchOverrides !== undefined
+      ? { searchOverrides: input.searchOverrides }
+      : {}),
   });
 }
 
@@ -101,6 +110,9 @@ export async function runCareerClawWithContext(
       : {}),
     ...(input.gapAnalysisMatchIndices !== undefined
       ? { gapAnalysisMatchIndices: input.gapAnalysisMatchIndices }
+      : {}),
+    ...(input.searchOverrides !== undefined
+      ? { searchOverrides: input.searchOverrides }
       : {}),
   });
 }

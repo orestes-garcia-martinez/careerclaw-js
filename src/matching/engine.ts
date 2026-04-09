@@ -134,7 +134,11 @@ export async function rankJobsWithEmbeddings(
     embeddingProvider,
     resumeText,
     limit = DEFAULT_TOP_K,
-    minKeywordScore = 0.01,
+    // Raised from 0.01 → 0.03: the embedding path needs a tighter keyword gate
+    // than the lexical-only path. With 70% embedding weight, jobs with near-zero
+    // keyword overlap (e.g. unrelated industries) can float on high cosine similarity
+    // alone. 0.03 filters true noise while keeping relevant jobs with unusual vocabulary.
+    minKeywordScore = 0.03,
   } = options;
 
   const profileText = buildProfileEmbeddingText(profile, resumeText);

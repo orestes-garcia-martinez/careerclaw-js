@@ -23,6 +23,7 @@ import type {
   BriefingResult,
   ResumeIntelligence,
   GapAnalysisResult,
+  SearchOverrides,
 } from "./models.js";
 import { fetchAllJobs, type FetchJobsFn, type FetchResult } from "./sources.js";
 import { rankJobs, rankJobsHybrid, rankJobsWithEmbeddings } from "./matching/index.js";
@@ -59,6 +60,11 @@ export interface BriefingOptions {
   coverLetterMatchIndices?: number[];
   /** 0-based indices into the matches array to run gap analysis for. */
   gapAnalysisMatchIndices?: number[];
+  /**
+   * Session-scoped search overrides — augment the profile for this run only.
+   * Use for agent-driven queries like "find me AI jobs" or "jobs at Google".
+   */
+  searchOverrides?: SearchOverrides;
 }
 
 export interface ContextBriefingOptions {
@@ -73,6 +79,11 @@ export interface ContextBriefingOptions {
   coverLetterMatchIndices?: number[];
   /** 0-based indices into the matches array to run gap analysis for. */
   gapAnalysisMatchIndices?: number[];
+  /**
+   * Session-scoped search overrides — augment the profile for this run only.
+   * Use for agent-driven queries like "find me AI jobs" or "jobs at Google".
+   */
+  searchOverrides?: SearchOverrides;
 }
 
 type InternalExecutionMode =
@@ -126,6 +137,7 @@ async function runBriefingInternal(
     enhanceFetchFn?: EnhanceOptions["fetchFn"];
     coverLetterMatchIndices?: number[];
     gapAnalysisMatchIndices?: number[];
+    searchOverrides?: SearchOverrides;
   },
   executionMode: InternalExecutionMode
 ): Promise<BriefingResult> {
@@ -139,6 +151,7 @@ async function runBriefingInternal(
     enhanceFetchFn,
     coverLetterMatchIndices = [],
     gapAnalysisMatchIndices = [],
+    searchOverrides,
   } = options;
 
   const isProActive = await resolvePremiumDraftAccess(executionMode, resumeIntel);
@@ -163,7 +176,7 @@ async function runBriefingInternal(
   const fetchStart = Date.now();
   let fetchResult: FetchResult;
   try {
-    fetchResult = await fetchFn(profile);
+    fetchResult = await fetchFn(profile, searchOverrides);
   } catch {
     fetchResult = { jobs: [], counts: {}, errors: {} };
   }

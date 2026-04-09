@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.12.0] (2026-04-09)
+
+### Features
+
+- **models:** add `SearchOverrides` interface — session-scoped query overrides (`target_industry`, `target_companies`, `target_skills`) that augment the user profile without mutating it; architected as the extension point for future agent-driven search commands ("find me AI jobs", "jobs at Google")
+- **models:** add `UserProfile.target_industry` — persistent industry/sector field (e.g. "B2B SaaS", "fintech") included in SerpAPI queries to narrow results to the user's domain and prevent off-domain companies from winning on generic role titles
+- **adapters:** `buildSerpApiGoogleJobsRequest` accepts `overrides?: SearchOverrides`; industry is resolved as `overrides.target_industry ?? profile.target_industry` and appended to the query (e.g. `"Director of Marketing B2B SaaS Florida"`)
+- **matching:** `rankJobsWithEmbeddings` `minKeywordScore` raised `0.01 → 0.03` — tighter noise gate for the embedding path prevents jobs from unrelated industries floating on cosine similarity alone
+- **matching:** `scoreWorkMode` hybrid differentiation — hybrid users score remote jobs `0.75` (preferred) vs onsite `0.5` (acceptable), replacing the flat `0.5` for all non-exact matches
+- **sources,briefing:** `SearchOverrides` threaded through `fetchAllJobs → fetchSerpApiJobsIfEnabled → fetchSerpApiGoogleJobs`; `BriefingOptions` and `ContextBriefingOptions` expose `searchOverrides?: SearchOverrides`
+
 ## [1.11.1](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.11.0...careerclaw-js-v1.11.1) (2026-04-08)
 
 

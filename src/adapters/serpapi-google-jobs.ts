@@ -13,7 +13,7 @@
  *     orchestration layer can capture without breaking the full briefing.
  */
 
-import type { NormalizedJob, UserProfile, WorkMode } from "../models.js";
+import type { NormalizedJob, UserProfile, WorkMode, SearchOverrides } from "../models.js";
 import { utcNow } from "../models.js";
 import {
   HTTP_TIMEOUT_MS,
@@ -37,6 +37,8 @@ export interface SerpApiGoogleJobsFetchOptions {
   maxPages?: number;
   noCache?: boolean;
   fetchFn?: typeof fetch;
+  /** Runtime search overrides — take precedence over profile fields for this run. */
+  overrides?: SearchOverrides;
 }
 
 export interface SerpApiGoogleJobsRequest {
@@ -157,7 +159,7 @@ export async function fetchSerpApiGoogleJobs(
   const fetchFn = options.fetchFn ?? fetch;
   const maxPages = clampMaxPages(options.maxPages ?? SERPAPI_GOOGLE_JOBS_MAX_PAGES);
   const noCache = options.noCache ?? SERPAPI_GOOGLE_JOBS_NO_CACHE;
-  const request = buildSerpApiGoogleJobsRequest(profile);
+  const request = buildSerpApiGoogleJobsRequest(profile, options.overrides);
   const fetchedAt = utcNow();
 
   const allJobs: NormalizedJob[] = [];
@@ -199,6 +201,7 @@ export async function fetchSerpApiGoogleJobs(
 
 export function buildSerpApiGoogleJobsRequest(
   profile: UserProfile,
+  overrides?: SearchOverrides,
 ): SerpApiGoogleJobsRequest {
   const primaryRole = firstNonEmpty(profile.target_roles) ?? inferFallbackRole(profile);
   const isRemote = profile.work_mode === "remote";
@@ -211,6 +214,17 @@ export function buildSerpApiGoogleJobsRequest(
   // For onsite/hybrid, include the location in q and as the location param.
   // For "any"/null, query on role alone — broadest possible result set.
   const queryParts = [primaryRole];
+
+  // Industry: overrides take precedence over profile.target_industry, but only
+  // when they carry a non-empty value after trimming. An empty-string override
+  // (e.g. from form serialisation) must not suppress a populated profile field.
+  // Future: target_companies and target_skills from overrides will be wired here.
+  const industry =
+    overrides?.target_industry?.trim() || profile.target_industry?.trim() || null;
+  if (industry) {
+    queryParts.push(industry);
+  }
+
   if (isLocationBased && profile.location) {
     queryParts.push(profile.location.trim());
   }
