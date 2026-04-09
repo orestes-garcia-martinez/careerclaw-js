@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.11.1...careerclaw-js-v1.12.0) (2026-04-09)
+
+
+### Features
+
+* **models,matching,adapters:** add SearchOverrides and target_industry for domain-aware job search ([#86](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/86)) ([e9ee40b](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/e9ee40be6de32f6998649d47576393f32294f026))
+
 ## [1.12.0] (2026-04-09)
 
 ### Features
