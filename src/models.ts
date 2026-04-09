@@ -93,6 +93,39 @@ export interface UserProfile {
   location_radius_km: number | null;
   /** Minimum acceptable annual salary in USD. */
   salary_min: number | null;
+  /**
+   * Target industry or sector to focus the job search on (e.g. "B2B SaaS", "fintech").
+   * When set, included in SerpAPI queries to narrow results to the user's domain.
+   *
+   * This is the persistent, profile-level field. For session-scoped overrides
+   * (e.g. "find me AI jobs"), use SearchOverrides.target_industry instead.
+   */
+  target_industry: string | null;
+}
+
+/**
+ * Runtime search overrides — session-scoped query refinements that augment
+ * the user's persistent profile without mutating it.
+ *
+ * Designed as the extension point for agent-driven search commands:
+ *   "Find me AI jobs"        → { target_industry: "artificial intelligence" }
+ *   "Jobs at Google or PWC"  → { target_companies: ["Google", "PWC"] }
+ *   "Find me fintech roles"  → { target_industry: "fintech" }
+ *
+ * When set, these take precedence over the corresponding profile fields for
+ * the duration of the briefing run only.
+ *
+ * Phase 1 (implemented): target_industry wired into SerpAPI query builder.
+ * Phase 2 (future): target_companies, target_skills wired in when the
+ *   agent-driven search feature ships.
+ */
+export interface SearchOverrides {
+  /** Override or supplement profile.target_industry for this run. */
+  target_industry?: string;
+  /** Restrict SerpAPI results to specific companies — Phase 2. */
+  target_companies?: string[];
+  /** Add skills to the SerpAPI query to narrow domain — Phase 2. */
+  target_skills?: string[];
 }
 
 /**
@@ -342,6 +375,7 @@ export function emptyProfile(): UserProfile {
     location: null,
     location_radius_km: null,
     salary_min: null,
+    target_industry: null,
   };
 }
 

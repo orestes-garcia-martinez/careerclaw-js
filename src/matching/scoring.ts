@@ -168,8 +168,17 @@ export function scoreWorkMode(
   if (jobMode === null || jobMode === undefined) return 0.5;
   if (userMode === "any") return 1.0;
   if (userMode === jobMode) return 1.0;
-  if (userMode === "hybrid" || jobMode === "hybrid") return 0.5;
 
+  // A hybrid job is acceptable for any work-mode preference.
+  if (jobMode === "hybrid") return 0.5;
+
+  // Hybrid users are flexible: they prefer remote (can always work from home)
+  // over onsite (less flexibility), but both are acceptable.
+  if (userMode === "hybrid") {
+    return jobMode === "remote" ? 0.75 : 0.5;
+  }
+
+  // Hard mismatch: remote vs onsite (or onsite vs remote).
   return 0.0;
 }
 

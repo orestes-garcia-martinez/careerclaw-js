@@ -5,7 +5,7 @@
  * Each adapter is isolated so one source failure does not fail the entire run.
  */
 
-import type { NormalizedJob, JobSource, UserProfile } from "./models.js";
+import type { NormalizedJob, JobSource, UserProfile, SearchOverrides } from "./models.js";
 import { fetchRemoteOkJobs } from "./adapters/remoteok.js";
 import { fetchHnJobs } from "./adapters/hackernews.js";
 import { fetchSerpApiGoogleJobs } from "./adapters/serpapi-google-jobs.js";
@@ -24,13 +24,13 @@ export interface FetchResult {
   errors: Partial<Record<JobSource, string>>;
 }
 
-export type FetchJobsFn = (profile: UserProfile) => Promise<FetchResult>;
+export type FetchJobsFn = (profile: UserProfile, overrides?: SearchOverrides) => Promise<FetchResult>;
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-export async function fetchAllJobs(profile: UserProfile): Promise<FetchResult> {
+export async function fetchAllJobs(profile: UserProfile, overrides?: SearchOverrides): Promise<FetchResult> {
   const counts: Partial<Record<JobSource, number>> = {};
   const errors: Partial<Record<JobSource, string>> = {};
   const allJobs: NormalizedJob[] = [];
@@ -38,7 +38,7 @@ export async function fetchAllJobs(profile: UserProfile): Promise<FetchResult> {
   const jobsBySource = await Promise.allSettled([
     fetchRemoteOkJobs(),
     fetchHnJobs(HN_WHO_IS_HIRING_ID),
-    fetchSerpApiJobsIfEnabled(profile),
+    fetchSerpApiJobsIfEnabled(profile, overrides),
   ]);
 
   collectSourceResult("remoteok", jobsBySource[0], counts, errors, allJobs);
@@ -76,12 +76,12 @@ export function deduplicate(jobs: NormalizedJob[]): NormalizedJob[] {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-async function fetchSerpApiJobsIfEnabled(profile: UserProfile): Promise<NormalizedJob[]> {
+async function fetchSerpApiJobsIfEnabled(profile: UserProfile, overrides?: SearchOverrides): Promise<NormalizedJob[]> {
   if (!SERPAPI_GOOGLE_JOBS_ENABLED) {
     return [];
   }
 
-  return fetchSerpApiGoogleJobs(profile);
+  return fetchSerpApiGoogleJobs(profile, overrides !== undefined ? { overrides } : {});
 }
 
 function collectSourceResult(

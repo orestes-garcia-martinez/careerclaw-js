@@ -229,8 +229,17 @@ describe("scoreWorkMode", () => {
     expect(scoreWorkMode(makeProfile(), makeJob({ work_mode: null }))).toBe(0.5);
   });
 
-  it("returns 0.5 when either side is hybrid", () => {
-    expect(scoreWorkMode(makeProfile({ work_mode: "hybrid" }), makeJob({ work_mode: "remote" }))).toBe(0.5);
+  it("returns 0.5 when job is hybrid (acceptable for any preference)", () => {
+    expect(scoreWorkMode(makeProfile({ work_mode: "remote" }), makeJob({ work_mode: "hybrid" }))).toBe(0.5);
+    expect(scoreWorkMode(makeProfile({ work_mode: "onsite" }), makeJob({ work_mode: "hybrid" }))).toBe(0.5);
+  });
+
+  it("returns 0.75 when hybrid user matches a remote job (preferred over onsite)", () => {
+    expect(scoreWorkMode(makeProfile({ work_mode: "hybrid" }), makeJob({ work_mode: "remote" }))).toBe(0.75);
+  });
+
+  it("returns 0.5 when hybrid user matches an onsite job (acceptable)", () => {
+    expect(scoreWorkMode(makeProfile({ work_mode: "hybrid" }), makeJob({ work_mode: "onsite" }))).toBe(0.5);
   });
 });
 
