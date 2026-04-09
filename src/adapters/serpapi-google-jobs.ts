@@ -215,12 +215,14 @@ export function buildSerpApiGoogleJobsRequest(
   // For "any"/null, query on role alone — broadest possible result set.
   const queryParts = [primaryRole];
 
-  // Industry: overrides take precedence over profile.target_industry.
-  // Narrows results to the user's sector (e.g. "B2B SaaS", "fintech").
+  // Industry: overrides take precedence over profile.target_industry, but only
+  // when they carry a non-empty value after trimming. An empty-string override
+  // (e.g. from form serialisation) must not suppress a populated profile field.
   // Future: target_companies and target_skills from overrides will be wired here.
-  const industry = overrides?.target_industry ?? profile.target_industry;
-  if (industry?.trim()) {
-    queryParts.push(industry.trim());
+  const industry =
+    overrides?.target_industry?.trim() || profile.target_industry?.trim() || null;
+  if (industry) {
+    queryParts.push(industry);
   }
 
   if (isLocationBased && profile.location) {

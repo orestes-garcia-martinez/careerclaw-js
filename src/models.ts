@@ -99,8 +99,10 @@ export interface UserProfile {
    *
    * This is the persistent, profile-level field. For session-scoped overrides
    * (e.g. "find me AI jobs"), use SearchOverrides.target_industry instead.
+   *
+   * Optional so that existing profile literals without this field remain valid.
    */
-  target_industry: string | null;
+  target_industry?: string | null;
 }
 
 /**
