@@ -1,6 +1,6 @@
 {
   "name": "careerclaw-js",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "description": "AI-powered job search automation for ClawOS, with a standalone Node.js runtime for local/manual workflows",
   "type": "module",
   "main": "dist/index.js",
