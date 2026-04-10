@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { NormalizedJob } from "../models.js";
-import { inferIndustriesFromJob, normalizeRequestedIndustry } from "../matching/intent.js";
+import {
+  inferIndustriesFromCompany,
+  inferIndustriesFromJob,
+  normalizeRequestedIndustry,
+} from "../matching/intent.js";
 
 function makeJob(
   overrides: Partial<NormalizedJob> & { job_id: string; title: string; description: string },
@@ -47,6 +51,41 @@ describe("normalizeRequestedIndustry", () => {
 });
 
 describe("inferIndustriesFromJob", () => {
+  it("uses company memory to override conflicting job text", () => {
+    const job = makeJob({
+      job_id: "medallion-1",
+      title: "Director of Product Marketing",
+      company: "Medallion",
+      description: "Own provider messaging and healthcare operations growth, not payments infrastructure.",
+    });
+
+    const industries = inferIndustriesFromJob(job);
+    expect(industries).toEqual(["healthcare"]);
+  });
+
+  it("normalizes company suffixes when using company memory", () => {
+    expect(inferIndustriesFromCompany("Santander Holdings USA Inc")).toContain("fintech");
+    expect(inferIndustriesFromCompany("CrowdStrike, Inc.")).toContain("cybersecurity");
+  });
+
+  it("supports multi-domain company memory entries", () => {
+    const industries = inferIndustriesFromCompany("OpenAI");
+    expect(industries).toContain("artificial_intelligence");
+    expect(industries).toContain("developer_tools");
+  });
+
+  it("uses company memory to keep gaming companies out of fintech results", () => {
+    const job = makeJob({
+      job_id: "hyperlab-1",
+      title: "User Acquisition Specialist",
+      company: "Hyperlab Games",
+      description: "Own performance campaigns, payments reporting, and gaming growth operations.",
+    });
+
+    const industries = inferIndustriesFromJob(job);
+    expect(industries).toEqual(["gaming"]);
+  });
+
   it("classifies cybersecurity jobs", () => {
     const job = makeJob({
       job_id: "cyber-1",
