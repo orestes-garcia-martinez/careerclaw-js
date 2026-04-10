@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.14.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.13.0...careerclaw-js-v1.14.0) (2026-04-10)
+
+
+### Features
+
+* **matching:** add company domain memory ([#97](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/97)) ([b64f23c](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/b64f23c58f8370bf23660d915fd1a261389856d4))
+* **matching:** add explicit intent filters ([#95](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/95)) ([42a1404](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/42a14041b6d589a791c8e200356b95a95823f11b))
+* **matching:** expand industry taxonomy coverage ([#96](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/96)) ([9030624](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/9030624f832fba9e7ed28ae521c566f89d8c97d9))
+* **search:** add target_skills retrieval and ranking ([#93](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/93)) ([bb51864](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/bb51864b733ce4883efa53a0b7766766d9405e0e))
+
 ## [1.13.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.12.0...careerclaw-js-v1.13.0) (2026-04-10)
 
 
