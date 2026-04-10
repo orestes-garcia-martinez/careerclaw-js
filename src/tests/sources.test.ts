@@ -110,6 +110,38 @@ describe("deduplicate", () => {
     expect(result).toHaveLength(1);
     expect(result[0]!.url).toBe("https://www.santandercareers.com/deposits-role");
   });
+
+  it("merges duplicate buckets when a later job connects them through different fingerprints", () => {
+    const result = deduplicate([
+      makeJob({
+        job_id: "a",
+        title: "Director, Marketing - Deposits",
+        company: "Santander Holdings USA Inc",
+        location: "Hialeah, FL",
+        description: "Lead deposits product marketing and GTM plans.",
+        url: "https://www.whatjobs.com/jobs/santander-deposits",
+      }),
+      makeJob({
+        job_id: "b",
+        title: "Director, Marketing - Deposits",
+        company: "Santander",
+        location: "Miami, FL",
+        description: "Lead deposits product marketing and GTM plans.",
+        url: "https://www.talent.com/view?id=santander-deposits",
+      }),
+      makeJob({
+        job_id: "c",
+        title: "Director, Marketing - Deposits",
+        company: "Santander Holdings USA Inc",
+        location: "Miami, FL",
+        description: "Lead deposits product marketing and GTM plans.",
+        url: "https://www.santandercareers.com/deposits-role",
+      }),
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.url).toBe("https://www.santandercareers.com/deposits-role");
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -63,30 +63,59 @@ export async function fetchAllJobs(profile: UserProfile, overrides?: SearchOverr
  */
 export function deduplicate(jobs: NormalizedJob[]): NormalizedJob[] {
   const seen = new Map<string, number>();
-  const result: NormalizedJob[] = [];
+  const buckets: Array<{
+    job: NormalizedJob;
+    fingerprints: Set<string>;
+    active: boolean;
+  }> = [];
 
   for (const job of jobs) {
     const fingerprints = buildDedupFingerprints(job);
-    const existingIndex = fingerprints
+    const matchedIndices = [...new Set(fingerprints
       .map((fingerprint) => seen.get(fingerprint))
-      .find((index): index is number => index !== undefined);
+      .filter((index): index is number => index !== undefined))];
 
-    if (existingIndex === undefined) {
-      const newIndex = result.length;
-      result.push(job);
+    if (matchedIndices.length === 0) {
+      const newIndex = buckets.length;
+      buckets.push({
+        job,
+        fingerprints: new Set(fingerprints),
+        active: true,
+      });
       for (const fingerprint of fingerprints) {
         seen.set(fingerprint, newIndex);
       }
       continue;
     }
 
-    const winner = pickPreferredJob(result[existingIndex]!, job);
-    result[existingIndex] = winner;
+    const primaryIndex = Math.min(...matchedIndices);
+    const primaryBucket = buckets[primaryIndex]!;
+    const candidateJobs = [
+      ...matchedIndices.map((index) => buckets[index]!.job),
+      job,
+    ];
+
+    primaryBucket.job = candidateJobs.reduce((winner, candidate) => pickPreferredJob(winner, candidate));
+
+    for (const index of matchedIndices) {
+      const bucket = buckets[index]!;
+      for (const fingerprint of bucket.fingerprints) {
+        primaryBucket.fingerprints.add(fingerprint);
+        seen.set(fingerprint, primaryIndex);
+      }
+
+      if (index !== primaryIndex) {
+        bucket.active = false;
+      }
+    }
+
     for (const fingerprint of fingerprints) {
-      seen.set(fingerprint, existingIndex);
+      primaryBucket.fingerprints.add(fingerprint);
+      seen.set(fingerprint, primaryIndex);
     }
   }
-  return result;
+
+  return buckets.filter((bucket) => bucket.active).map((bucket) => bucket.job);
 }
 
 // ---------------------------------------------------------------------------
