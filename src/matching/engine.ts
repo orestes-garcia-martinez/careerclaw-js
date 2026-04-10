@@ -30,7 +30,7 @@ import { compositeScore, compositeScoreHybrid, compositeScoreWithEmbedding } fro
 import type { EmbeddingProvider } from "../embedding/provider.js";
 import { buildProfileEmbeddingText, buildJobEmbeddingText } from "../embedding/text-builder.js";
 
-const MIN_SKILL_ALIGNMENT = 0.0001;
+const REQUIRED_SKILL_ALIGNMENT = 1.0;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -185,5 +185,5 @@ function passesSkillGate(scored: ScoredJob): boolean {
     return true;
   }
 
-  return skillAlignment >= MIN_SKILL_ALIGNMENT;
+  return skillAlignment >= REQUIRED_SKILL_ALIGNMENT;
 }

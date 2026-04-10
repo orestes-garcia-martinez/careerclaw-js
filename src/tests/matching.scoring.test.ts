@@ -320,6 +320,17 @@ describe("scoreSkillAlignment", () => {
     expect(score).toBe(0.0);
   });
 
+  it("matches non-taxonomy phrase skills via semantic phrases", () => {
+    const score = scoreSkillAlignment(
+      makeJob({
+        title: "AI Engineer",
+        description: "Own prompt engineering, evaluation workflows, and model quality.",
+      }),
+      { target_skills: ["prompt engineering"] },
+    );
+    expect(score).toBe(1.0);
+  });
+
   it("returns null when no target skills are requested", () => {
     const score = scoreSkillAlignment(makeJob(), {});
     expect(score).toBeNull();

@@ -675,6 +675,13 @@ function jobMatchesTargetSkill(
     skill.toLowerCase().trim(),
   ]);
 
+  const normalizedJobPhrases = new Set(
+    [...jobView.semanticPhrases].map((phrase) => normalizeSkill(phrase)),
+  );
+  if (normalized && normalizedJobPhrases.has(normalized)) {
+    return true;
+  }
+
   if (canonical) {
     for (const term of [canonical, ...getSkillAliases(canonical), ...getCredentials(canonical)]) {
       candidateTerms.add(term.toLowerCase().trim());
