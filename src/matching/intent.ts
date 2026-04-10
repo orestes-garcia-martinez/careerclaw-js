@@ -342,6 +342,25 @@ const INDUSTRY_ALIASES: Record<string, IndustryFamily> = {
   defence: "defense",
 };
 
+const COMPANY_INDUSTRY_MEMORY: Record<string, readonly IndustryFamily[]> = {
+  medallion: ["healthcare"],
+  "medallion health": ["healthcare"],
+  hyperlab: ["gaming"],
+  "hyperlab games": ["gaming"],
+  hellotext: ["ecommerce"],
+  santander: ["fintech"],
+  stripe: ["fintech", "developer_tools"],
+  plaid: ["fintech", "developer_tools"],
+  openai: ["artificial_intelligence", "developer_tools"],
+  remitly: ["fintech"],
+  wise: ["fintech"],
+  shopify: ["ecommerce"],
+  crowdstrike: ["cybersecurity"],
+  datadog: ["developer_tools"],
+  github: ["developer_tools"],
+  zapier: ["saas", "developer_tools"],
+};
+
 export interface ExplicitIntentProfile {
   roleFamilies: RoleFamily[];
   requestedIndustry: IndustryFamily | null;
@@ -427,7 +446,24 @@ export function normalizeRequestedIndustry(industry: string | null | undefined):
 }
 
 export function inferIndustriesFromJob(job: NormalizedJob): IndustryFamily[] {
+  const rememberedIndustries = inferIndustriesFromCompany(job.company);
+  if (rememberedIndustries.length > 0) {
+    return rememberedIndustries;
+  }
+
   return inferIndustries(`${job.company} ${job.title} ${job.description}`);
+}
+
+export function inferIndustriesFromCompany(company: string): IndustryFamily[] {
+  const normalized = normalizeCompanyName(company);
+  if (!normalized) {
+    return [];
+  }
+
+  return [...new Set([
+    ...(COMPANY_INDUSTRY_MEMORY[normalized] ?? []),
+    ...lookupCompanyMemoryByPrefix(normalized),
+  ])];
 }
 
 function inferRoleFamilies(text: string, options: InferFamiliesOptions = {}): RoleFamily[] {
@@ -473,4 +509,28 @@ function countKeywordHits(haystack: string, keyword: string): number {
   const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const matches = haystack.match(new RegExp(`\\b${escaped}\\b`, "g"));
   return matches?.length ?? 0;
+}
+
+function normalizeCompanyName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\b(inc|incorporated|llc|ltd|limited|corp|corporation|company|co|holdings|holding|bank|n a|na|usa)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function lookupCompanyMemoryByPrefix(normalizedCompany: string): IndustryFamily[] {
+  for (const [knownCompany, industries] of Object.entries(COMPANY_INDUSTRY_MEMORY)) {
+    if (
+      normalizedCompany === knownCompany ||
+      normalizedCompany.startsWith(`${knownCompany} `) ||
+      knownCompany.startsWith(`${normalizedCompany} `)
+    ) {
+      return [...industries];
+    }
+  }
+
+  return [];
 }
