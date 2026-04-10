@@ -245,6 +245,10 @@ export interface ExplicitIntentProfile {
   requestedIndustry: IndustryFamily | null;
 }
 
+interface InferFamiliesOptions {
+  maxFamilies?: number | null;
+}
+
 export function buildExplicitIntentProfile(
   profile: UserProfile,
   overrides?: SearchOverrides,
@@ -254,7 +258,7 @@ export function buildExplicitIntentProfile(
   );
 
   return {
-    roleFamilies: inferRoleFamiliesFromTargetRoles(profile),
+    roleFamilies: inferRoleFamiliesFromTargetRolesForGate(profile),
     requestedIndustry,
   };
 }
@@ -272,6 +276,10 @@ export function inferRoleFamiliesFromTargetRoles(profile: UserProfile): RoleFami
   return inferRoleFamilies(profile.target_roles.join(" "));
 }
 
+export function inferRoleFamiliesFromTargetRolesForGate(profile: UserProfile): RoleFamily[] {
+  return inferRoleFamilies(profile.target_roles.join(" "), { maxFamilies: null });
+}
+
 export function inferRoleFamiliesFromJob(job: NormalizedJob): RoleFamily[] {
   const titleFamilies = inferRoleFamilies(job.title);
   if (titleFamilies.length > 0) {
@@ -279,6 +287,15 @@ export function inferRoleFamiliesFromJob(job: NormalizedJob): RoleFamily[] {
   }
 
   return inferRoleFamilies(`${job.title} ${job.description}`);
+}
+
+export function inferRoleFamiliesFromJobForGate(job: NormalizedJob): RoleFamily[] {
+  const titleFamilies = inferRoleFamilies(job.title, { maxFamilies: null });
+  if (titleFamilies.length > 0) {
+    return titleFamilies;
+  }
+
+  return inferRoleFamilies(`${job.title} ${job.description}`, { maxFamilies: null });
 }
 
 export function roleFamilyCompatibility(a: RoleFamily, b: RoleFamily): number {
@@ -305,18 +322,20 @@ export function inferIndustriesFromJob(job: NormalizedJob): IndustryFamily[] {
   return inferIndustries(`${job.company} ${job.title} ${job.description}`);
 }
 
-function inferRoleFamilies(text: string): RoleFamily[] {
-  return inferFamilies(text, ROLE_FAMILY_KEYWORDS);
+function inferRoleFamilies(text: string, options: InferFamiliesOptions = {}): RoleFamily[] {
+  return inferFamilies(text, ROLE_FAMILY_KEYWORDS, options);
 }
 
-function inferIndustries(text: string): IndustryFamily[] {
-  return inferFamilies(text, INDUSTRY_KEYWORDS);
+function inferIndustries(text: string, options: InferFamiliesOptions = {}): IndustryFamily[] {
+  return inferFamilies(text, INDUSTRY_KEYWORDS, options);
 }
 
 function inferFamilies<TFamily extends string>(
   text: string,
   keywordMap: Record<TFamily, readonly string[]>,
+  options: InferFamiliesOptions = {},
 ): TFamily[] {
+  const { maxFamilies = 2 } = options;
   const haystack = text.toLowerCase();
   const scored = (Object.entries(keywordMap) as Array<[TFamily, readonly string[]]>)
     .map(([family, keywords]) => {
@@ -331,10 +350,15 @@ function inferFamilies<TFamily extends string>(
   }
 
   const topScore = scored[0]!.score;
-  return scored
+  const matchedFamilies = scored
     .filter((entry) => entry.score >= Math.max(1, topScore * 0.6))
-    .slice(0, 2)
     .map((entry) => entry.family);
+
+  if (maxFamilies === null) {
+    return matchedFamilies;
+  }
+
+  return matchedFamilies.slice(0, maxFamilies);
 }
 
 function countKeywordHits(haystack: string, keyword: string): number {

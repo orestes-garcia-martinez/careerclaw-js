@@ -32,7 +32,7 @@ import { buildProfileEmbeddingText, buildJobEmbeddingText } from "../embedding/t
 import {
   buildExplicitIntentProfile,
   inferIndustriesFromJob,
-  inferRoleFamiliesFromJob,
+  inferRoleFamiliesFromJobForGate,
   roleFamilyCompatibility,
 } from "./intent.js";
 
@@ -218,7 +218,7 @@ function passesRoleIntentGate(
     return true;
   }
 
-  const jobFamilies = inferRoleFamiliesFromJob(job);
+  const jobFamilies = inferRoleFamiliesFromJobForGate(job);
   if (jobFamilies.length === 0) {
     return true;
   }

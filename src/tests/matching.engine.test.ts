@@ -219,6 +219,37 @@ describe("rankJobs — signal gate", () => {
     expect(results[0]?.job.job_id).toBe("marketing");
   });
 
+  it("preserves a third inferred role family for explicit intent gating", () => {
+    const profile = makeProfile({
+      skills: [],
+      target_roles: ["finance operations engineer"],
+    });
+    const jobs = [
+      makeJob({
+        job_id: "finance",
+        title: "Finance Lead",
+        description: "Own planning, board reporting, and pricing analysis.",
+      }),
+      makeJob({
+        job_id: "operations",
+        title: "Operations Manager",
+        description: "Own onboarding, vendor management, and launch readiness.",
+      }),
+      makeJob({
+        job_id: "engineering",
+        title: "Software Engineer",
+        description: "Build TypeScript platform services and backend systems.",
+      }),
+    ];
+
+    const results = rankJobs(jobs, profile, 5, 0);
+    const resultIds = results.map((result) => result.job.job_id);
+
+    expect(resultIds).toContain("finance");
+    expect(resultIds).toContain("operations");
+    expect(resultIds).toContain("engineering");
+  });
+
   it("filters clearly wrong industries when target_industry is explicit", () => {
     const profile = makeProfile({
       skills: ["product marketing", "messaging", "salesforce"],
