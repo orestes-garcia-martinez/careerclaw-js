@@ -64,6 +64,50 @@ describe("synthetic profile regressions", () => {
     expect(results[0]?.breakdown.role_alignment).toBeGreaterThan(results[1]?.breakdown.role_alignment ?? 0);
   });
 
+  it("filters Elena Ruiz fintech searches away from healthcare and gaming roles", () => {
+    const profile: UserProfile = {
+      ...emptyProfile(),
+      skills: ["Product Marketing", "Demand Generation", "Lifecycle Marketing", "HubSpot", "SQL", "Analytics"],
+      target_roles: ["Director of Marketing", "Head of Product Marketing", "Growth Marketing Leader"],
+      resume_summary: "Growth and product marketing leader with B2B SaaS and AI workflow experience.",
+      experience_years: 11,
+      work_mode: "onsite",
+      location: "Florida",
+      salary_min: 150000,
+      location_radius_km: 40,
+    };
+
+    const results = rankJobs([
+      makeJob({
+        job_id: "fintech-marketing",
+        title: "Director of Product Marketing",
+        company: "FinBank",
+        description: "Lead GTM, positioning, analytics, and lifecycle programs for payments and lending products.",
+        work_mode: "onsite",
+        location: "Miami, FL",
+      }),
+      makeJob({
+        job_id: "healthcare-marketing",
+        title: "Director of Product Marketing",
+        company: "Medallion Health",
+        description: "Own provider messaging, patient engagement, and clinical platform growth for healthcare operations.",
+        work_mode: "onsite",
+        location: "Miami, FL",
+      }),
+      makeJob({
+        job_id: "gaming-marketing",
+        title: "User Acquisition Specialist",
+        company: "Hyperlab Games",
+        description: "Run paid user acquisition and growth campaigns for a mobile gaming studio.",
+        work_mode: "onsite",
+        location: "Miami, FL",
+      }),
+    ], profile, 5, 0, { target_industry: "fintech" });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.job.job_id).toBe("fintech-marketing");
+  });
+
   it("keeps Marcus Chen aligned to product design roles over engineering roles", () => {
     const profile: UserProfile = {
       ...emptyProfile(),

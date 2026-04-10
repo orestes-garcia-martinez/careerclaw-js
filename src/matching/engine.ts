@@ -29,8 +29,15 @@ import { DEFAULT_TOP_K } from "../config.js";
 import { compositeScore, compositeScoreHybrid, compositeScoreWithEmbedding } from "./scoring.js";
 import type { EmbeddingProvider } from "../embedding/provider.js";
 import { buildProfileEmbeddingText, buildJobEmbeddingText } from "../embedding/text-builder.js";
+import {
+  buildExplicitIntentProfile,
+  inferIndustriesFromJob,
+  inferRoleFamiliesFromJobForGate,
+  roleFamilyCompatibility,
+} from "./intent.js";
 
 const REQUIRED_SKILL_ALIGNMENT = 1.0;
+const MIN_ROLE_COMPATIBILITY = 0.35;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -52,7 +59,9 @@ export function rankJobs(
   minKeywordScore: number = 0.01,
   searchOverrides?: SearchOverrides,
 ): ScoredJob[] {
-  return jobs
+  const candidateJobs = filterJobsByExplicitIntent(jobs, profile, searchOverrides);
+
+  return candidateJobs
     .map((job): ScoredJob => {
       const { total, breakdown, matched, gaps } = compositeScore(profile, job, searchOverrides);
       return {
@@ -97,8 +106,9 @@ export async function rankJobsHybrid(
     minKeywordScore = 0.01,
     searchOverrides,
   } = options;
+  const candidateJobs = filterJobsByExplicitIntent(jobs, profile, searchOverrides);
 
-  return jobs
+  return candidateJobs
     .map((job): ScoredJob => {
       const { total, breakdown, matched, gaps } = compositeScoreHybrid(profile, job, {
         ...(resumeText !== undefined ? { resumeText } : {}),
@@ -151,9 +161,10 @@ export async function rankJobsWithEmbeddings(
     minKeywordScore = 0.03,
     searchOverrides,
   } = options;
+  const candidateJobs = filterJobsByExplicitIntent(jobs, profile, searchOverrides);
 
   const profileText = buildProfileEmbeddingText(profile, resumeText);
-  const jobTexts = jobs.map(buildJobEmbeddingText);
+  const jobTexts = candidateJobs.map(buildJobEmbeddingText);
 
   // Single ONNX forward pass: profile + all N jobs in one call
   const allVectors = await embeddingProvider.embed([profileText, ...jobTexts]);
@@ -161,7 +172,7 @@ export async function rankJobsWithEmbeddings(
   const profileVec = allVectors[0]!;
   const jobVecs = allVectors.slice(1);
 
-  return jobs
+  return candidateJobs
     .map((job, i): ScoredJob => {
       const jobVec = jobVecs[i]!;
       const { total, breakdown, matched, gaps } = compositeScoreWithEmbedding(
@@ -177,6 +188,66 @@ export async function rankJobsWithEmbeddings(
     .filter(passesSkillGate)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
+}
+
+function filterJobsByExplicitIntent(
+  jobs: NormalizedJob[],
+  profile: UserProfile,
+  searchOverrides?: SearchOverrides,
+): NormalizedJob[] {
+  const intent = buildExplicitIntentProfile(profile, searchOverrides);
+
+  return jobs.filter((job) => {
+    if (!passesRoleIntentGate(job, intent.roleFamilies)) {
+      return false;
+    }
+
+    if (!passesIndustryIntentGate(job, intent.requestedIndustry)) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function passesRoleIntentGate(
+  job: NormalizedJob,
+  requestedRoleFamilies: ReturnType<typeof buildExplicitIntentProfile>["roleFamilies"],
+): boolean {
+  if (requestedRoleFamilies.length === 0) {
+    return true;
+  }
+
+  const jobFamilies = inferRoleFamiliesFromJobForGate(job);
+  if (jobFamilies.length === 0) {
+    return true;
+  }
+
+  for (const requestedFamily of requestedRoleFamilies) {
+    for (const jobFamily of jobFamilies) {
+      if (roleFamilyCompatibility(requestedFamily, jobFamily) >= MIN_ROLE_COMPATIBILITY) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function passesIndustryIntentGate(
+  job: NormalizedJob,
+  requestedIndustry: ReturnType<typeof buildExplicitIntentProfile>["requestedIndustry"],
+): boolean {
+  if (!requestedIndustry) {
+    return true;
+  }
+
+  const jobIndustries = inferIndustriesFromJob(job);
+  if (jobIndustries.length === 0) {
+    return true;
+  }
+
+  return jobIndustries.includes(requestedIndustry);
 }
 
 function passesSkillGate(scored: ScoredJob): boolean {
