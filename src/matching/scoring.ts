@@ -44,9 +44,10 @@ import { EMBEDDING_MATCHING, SEMANTIC_MATCHING } from "../config.js";
  *   experience 0.4, salary 0.3, work_mode 0.3
  */
 const QUALITY_WEIGHTS = {
-  experience: 0.4,
-  salary: 0.3,
-  work_mode: 0.3,
+  role_alignment: 0.35,
+  experience: 0.25,
+  salary: 0.2,
+  work_mode: 0.2,
 } as const;
 
 // Verify weights sum to 1.0 at module load time
@@ -63,6 +64,151 @@ export interface HybridMatchBreakdown extends MatchBreakdown {
 export interface EmbeddingMatchBreakdown extends MatchBreakdown {
   embedding: number;
 }
+
+type RoleFamily =
+  | "marketing"
+  | "design"
+  | "operations"
+  | "finance"
+  | "engineering"
+  | "sales"
+  | "data"
+  | "product"
+  | "customer_success";
+
+const ROLE_FAMILY_KEYWORDS: Record<RoleFamily, readonly string[]> = {
+  marketing: [
+    "marketing",
+    "product marketing",
+    "growth",
+    "demand gen",
+    "demand generation",
+    "lifecycle",
+    "brand",
+    "messaging",
+    "campaign",
+    "seo",
+    "content strategy",
+    "content marketing",
+    "paid acquisition",
+  ],
+  design: [
+    "design",
+    "designer",
+    "ux",
+    "ui",
+    "product design",
+    "interaction design",
+    "design systems",
+    "figma",
+    "prototype",
+    "accessibility",
+    "ux writing",
+    "storyboard",
+    "storyboarding",
+    "design qa",
+  ],
+  operations: [
+    "operations",
+    "operator",
+    "program management",
+    "program manager",
+    "project management",
+    "launch readiness",
+    "process design",
+    "vendor management",
+    "onboarding",
+    "support workflow",
+    "support workflows",
+    "implementation",
+    "enablement",
+    "service operations",
+  ],
+  finance: [
+    "finance",
+    "fp&a",
+    "fpa",
+    "financial",
+    "accounting",
+    "accountant",
+    "pricing",
+    "cash planning",
+    "board reporting",
+    "revenue analysis",
+    "subscription economics",
+    "margin",
+    "procurement",
+    "netsuite",
+  ],
+  engineering: [
+    "engineer",
+    "engineering",
+    "developer",
+    "software",
+    "frontend",
+    "backend",
+    "full-stack",
+    "full stack",
+    "platform",
+    "devops",
+    "sre",
+    "python",
+    "node",
+    "typescript",
+    "react",
+  ],
+  sales: [
+    "sales",
+    "account executive",
+    "sales development",
+    "business development",
+    "sdr",
+    "bdr",
+    "revenue generation",
+    "pipeline generation",
+  ],
+  data: [
+    "data",
+    "analyst",
+    "analytics engineer",
+    "data scientist",
+    "business intelligence",
+    "bi",
+    "sql analyst",
+    "reporting analyst",
+  ],
+  product: [
+    "product manager",
+    "product management",
+    "product strategy",
+    "product lead",
+    "go-to-market",
+    "gtm",
+    "roadmap",
+  ],
+  customer_success: [
+    "customer success",
+    "customer operations",
+    "implementation manager",
+    "account management",
+    "customer onboarding",
+    "renewal",
+    "retention",
+    "success manager",
+  ],
+};
+
+const RELATED_ROLE_FAMILIES: Partial<Record<RoleFamily, readonly RoleFamily[]>> = {
+  marketing: ["sales", "product"],
+  design: ["product", "engineering"],
+  operations: ["customer_success", "product"],
+  finance: ["data", "operations"],
+  engineering: ["data", "design", "product"],
+  sales: ["marketing", "customer_success"],
+  data: ["engineering", "finance", "marketing"],
+  product: ["design", "engineering", "marketing", "operations"],
+  customer_success: ["operations", "sales"],
+};
 
 /**
  * Score keyword overlap between the user profile and a job posting.
@@ -182,6 +328,27 @@ export function scoreWorkMode(
   return 0.0;
 }
 
+export function scoreRoleAlignment(
+  profile: UserProfile,
+  job: NormalizedJob,
+): number {
+  const profileFamilies = inferRoleFamiliesFromProfile(profile);
+  const jobFamilies = inferRoleFamiliesFromJob(job);
+
+  if (profileFamilies.length === 0 || jobFamilies.length === 0) {
+    return 0.5;
+  }
+
+  let best = 0.05;
+  for (const profileFamily of profileFamilies) {
+    for (const jobFamily of jobFamilies) {
+      best = Math.max(best, roleFamilyCompatibility(profileFamily, jobFamily));
+    }
+  }
+
+  return best;
+}
+
 /**
  * Compute the weighted composite score (legacy / lexical-only path).
  *
@@ -199,11 +366,13 @@ export function compositeScore(
   job: NormalizedJob
 ): { total: number; breakdown: MatchBreakdown; matched: string[]; gaps: string[] } {
   const kw = scoreKeyword(profile, job);
+  const role_alignment = scoreRoleAlignment(profile, job);
   const experience = scoreExperience(profile, job);
   const salary = scoreSalary(profile, job);
   const work_mode = scoreWorkMode(profile, job);
 
   const qualityBase =
+    role_alignment * QUALITY_WEIGHTS.role_alignment +
     experience * QUALITY_WEIGHTS.experience +
     salary     * QUALITY_WEIGHTS.salary +
     work_mode  * QUALITY_WEIGHTS.work_mode;
@@ -213,7 +382,7 @@ export function compositeScore(
 
   return {
     total,
-    breakdown: { keyword: kw.score, experience, salary, work_mode },
+    breakdown: { keyword: kw.score, role_alignment, experience, salary, work_mode },
     matched: kw.matched,
     gaps: kw.gaps,
   };
@@ -238,11 +407,13 @@ export function compositeScoreHybrid(
   const lexicalEnhanced = weightedOverlapScore(profileView.lexicalWeights, jobView.lexicalWeights);
   const semantic = computeSemanticScore(profileView, jobView);
 
+  const role_alignment = scoreRoleAlignment(profile, job);
   const experience = scoreExperience(profile, job);
   const salary = scoreSalary(profile, job);
   const work_mode = scoreWorkMode(profile, job);
 
   const qualityBase =
+    role_alignment * QUALITY_WEIGHTS.role_alignment +
     experience * QUALITY_WEIGHTS.experience +
     salary     * QUALITY_WEIGHTS.salary +
     work_mode  * QUALITY_WEIGHTS.work_mode;
@@ -262,6 +433,7 @@ export function compositeScoreHybrid(
       keyword: lexicalForRanking,
       lexical_keyword: lexicalBaseline.score,
       semantic: semantic.available ? semantic.score : 0,
+      role_alignment,
       experience,
       salary,
       work_mode,
@@ -300,11 +472,13 @@ export function compositeScoreWithEmbedding(
   const kw = scoreKeyword(profile, job);
   const embed = cosineSimilarity(profileVec, jobVec);
 
+  const role_alignment = scoreRoleAlignment(profile, job);
   const experience = scoreExperience(profile, job);
   const salary = scoreSalary(profile, job);
   const work_mode = scoreWorkMode(profile, job);
 
   const qualityBase =
+    role_alignment * QUALITY_WEIGHTS.role_alignment +
     experience * QUALITY_WEIGHTS.experience +
     salary     * QUALITY_WEIGHTS.salary +
     work_mode  * QUALITY_WEIGHTS.work_mode;
@@ -318,7 +492,7 @@ export function compositeScoreWithEmbedding(
 
   return {
     total,
-    breakdown: { keyword: kw.score, embedding: embed, experience, salary, work_mode },
+    breakdown: { keyword: kw.score, embedding: embed, role_alignment, experience, salary, work_mode },
     matched: kw.matched,
     gaps: kw.gaps,
   };
@@ -326,4 +500,60 @@ export function compositeScoreWithEmbedding(
 
 function roundScore(n: number): number {
   return Math.round(n * 10_000) / 10_000;
+}
+
+function inferRoleFamiliesFromProfile(profile: UserProfile): RoleFamily[] {
+  const text = [
+    ...profile.target_roles,
+    ...profile.skills,
+    profile.resume_summary ?? "",
+  ].join(" ");
+  return inferRoleFamilies(text);
+}
+
+function inferRoleFamiliesFromJob(job: NormalizedJob): RoleFamily[] {
+  const titleFamilies = inferRoleFamilies(job.title);
+  if (titleFamilies.length > 0) {
+    return titleFamilies;
+  }
+  return inferRoleFamilies(`${job.title} ${job.description}`);
+}
+
+function inferRoleFamilies(text: string): RoleFamily[] {
+  const haystack = text.toLowerCase();
+  const scored = Object.entries(ROLE_FAMILY_KEYWORDS)
+    .map(([family, keywords]) => {
+      const score = keywords.reduce((sum, keyword) => sum + countRoleKeywordHits(haystack, keyword), 0);
+      return { family: family as RoleFamily, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (scored.length === 0) {
+    return [];
+  }
+
+  const topScore = scored[0]!.score;
+  return scored
+    .filter((entry) => entry.score >= Math.max(1, topScore * 0.6))
+    .slice(0, 2)
+    .map((entry) => entry.family);
+}
+
+function countRoleKeywordHits(haystack: string, keyword: string): number {
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matches = haystack.match(new RegExp(`\\b${escaped}\\b`, "g"));
+  return matches?.length ?? 0;
+}
+
+function roleFamilyCompatibility(a: RoleFamily, b: RoleFamily): number {
+  if (a === b) {
+    return 1.0;
+  }
+
+  if (RELATED_ROLE_FAMILIES[a]?.includes(b) || RELATED_ROLE_FAMILIES[b]?.includes(a)) {
+    return 0.35;
+  }
+
+  return 0.05;
 }

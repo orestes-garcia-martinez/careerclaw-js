@@ -203,7 +203,7 @@ export function buildSerpApiGoogleJobsRequest(
   profile: UserProfile,
   overrides?: SearchOverrides,
 ): SerpApiGoogleJobsRequest {
-  const primaryRole = firstNonEmpty(profile.target_roles) ?? inferFallbackRole(profile);
+  const roleFocus = buildRoleFocus(profile);
   const isRemote = profile.work_mode === "remote";
   // Only apply geographic filters for explicitly location-based modes.
   // "any" and null are intentionally open — no location constraint applied.
@@ -213,7 +213,7 @@ export function buildSerpApiGoogleJobsRequest(
   // the word "remote" to q or pass a geographic location.
   // For onsite/hybrid, include the location in q and as the location param.
   // For "any"/null, query on role alone — broadest possible result set.
-  const queryParts = [primaryRole];
+  const queryParts = [roleFocus];
 
   // Industry: overrides take precedence over profile.target_industry, but only
   // when they carry a non-empty value after trimming. An empty-string override
@@ -563,6 +563,30 @@ function inferFallbackRole(profile: UserProfile): string {
   return "software engineer";
 }
 
+function buildRoleFocus(profile: UserProfile): string {
+  const explicitRoles = profile.target_roles
+    .map((role) => cleanText(role))
+    .filter(isNonEmptyString);
+
+  if (explicitRoles.length === 0) {
+    return inferFallbackRole(profile);
+  }
+
+  const primaryRole = explicitRoles[0]!;
+  const rest = explicitRoles.slice(1);
+  const queryRoles = [primaryRole];
+  const primaryCore = normalizeRoleCore(primaryRole);
+
+  for (const role of rest) {
+    if (queryRoles.length >= 2) break;
+    const roleCore = normalizeRoleCore(role);
+    if (!roleCore || roleCore === primaryCore) continue;
+    queryRoles.push(role);
+  }
+
+  return queryRoles.join(" ");
+}
+
 function clampMaxPages(value: number): number {
   if (!Number.isFinite(value) || value < 1) return 1;
   return Math.min(Math.trunc(value), 5);
@@ -607,6 +631,16 @@ function firstNonEmpty(values: Array<string | undefined | null>): string | null 
 
 function isNonEmptyString(value: string | null): value is string {
   return typeof value === "string" && value.length > 0;
+}
+
+function normalizeRoleCore(role: string): string {
+  return cleanText(
+    role
+      .toLowerCase()
+      .replace(/\b(senior|sr|junior|jr|lead|principal|staff|head|director|manager|executive|leader)\b/g, " ")
+      .replace(/\b(of|and|for|the)\b/g, " ")
+      .replace(/\s+/g, " "),
+  );
 }
 
 function isAbortError(error: unknown): boolean {
