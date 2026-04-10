@@ -16,6 +16,9 @@ export type IndustryFamily =
   | "healthcare"
   | "gaming"
   | "ecommerce"
+  | "cybersecurity"
+  | "edtech"
+  | "proptech"
   | "artificial_intelligence"
   | "developer_tools"
   | "saas"
@@ -159,23 +162,35 @@ const RELATED_ROLE_FAMILIES: Partial<Record<RoleFamily, readonly RoleFamily[]>> 
 const INDUSTRY_KEYWORDS: Record<IndustryFamily, readonly string[]> = {
   fintech: [
     "fintech",
+    "finserv",
     "financial technology",
+    "financial services",
+    "payments infrastructure",
     "payments",
     "payment",
+    "embedded finance",
+    "neobank",
     "banking",
+    "banking as a service",
     "bank",
     "deposits",
     "lending",
     "loan",
     "credit",
+    "card issuing",
+    "issuer processing",
     "wealth",
     "insurtech",
+    "insurance technology",
     "remittance",
   ],
   healthcare: [
     "healthcare",
     "health care",
+    "healthtech",
+    "health tech",
     "medical",
+    "payer",
     "patient",
     "clinical",
     "hospital",
@@ -183,6 +198,10 @@ const INDUSTRY_KEYWORDS: Record<IndustryFamily, readonly string[]> = {
     "medtech",
     "telehealth",
     "care delivery",
+    "ehr",
+    "emr",
+    "credentialing",
+    "care management",
   ],
   gaming: [
     "gaming",
@@ -196,18 +215,60 @@ const INDUSTRY_KEYWORDS: Record<IndustryFamily, readonly string[]> = {
     "ecommerce",
     "e-commerce",
     "commerce",
+    "d2c",
+    "direct-to-consumer",
+    "shopify",
     "retail",
     "marketplace",
     "merchant",
+    "merchant tooling",
     "shopping",
     "storefront",
   ],
+  cybersecurity: [
+    "cybersecurity",
+    "cyber security",
+    "security software",
+    "security platform",
+    "secops",
+    "threat detection",
+    "identity security",
+    "endpoint security",
+    "siem",
+    "zero trust",
+  ],
+  edtech: [
+    "edtech",
+    "education technology",
+    "learning platform",
+    "learning management",
+    "lms",
+    "student",
+    "teacher",
+    "classroom",
+    "curriculum",
+  ],
+  proptech: [
+    "proptech",
+    "property technology",
+    "real estate software",
+    "real estate",
+    "property management",
+    "leasing",
+    "multifamily",
+    "brokerage",
+  ],
   artificial_intelligence: [
+    "ai",
     "artificial intelligence",
     "machine learning",
     "generative ai",
+    "gen ai",
     "genai",
     "llm",
+    "agentic",
+    "ai agents",
+    "inference",
     "foundation model",
     "model serving",
     "prompt engineering",
@@ -215,17 +276,23 @@ const INDUSTRY_KEYWORDS: Record<IndustryFamily, readonly string[]> = {
   developer_tools: [
     "developer tools",
     "devtools",
+    "developer experience",
     "api platform",
     "developer platform",
     "observability",
+    "monitoring",
+    "tracing",
     "ci/cd",
     "sdk",
     "infrastructure for developers",
   ],
   saas: [
     "saas",
+    "b2b saas",
     "software as a service",
     "b2b software",
+    "enterprise software",
+    "cloud software",
     "workflow software",
     "subscription software",
   ],
@@ -238,6 +305,41 @@ const INDUSTRY_KEYWORDS: Record<IndustryFamily, readonly string[]> = {
     "government contractor",
     "national security",
   ],
+};
+
+const INDUSTRY_ALIASES: Record<string, IndustryFamily> = {
+  finserv: "fintech",
+  "financial services": "fintech",
+  payments: "fintech",
+  payment: "fintech",
+  insurtech: "fintech",
+  "health tech": "healthcare",
+  healthtech: "healthcare",
+  medtech: "healthcare",
+  healthcare: "healthcare",
+  "health care": "healthcare",
+  cybersecurity: "cybersecurity",
+  "cyber security": "cybersecurity",
+  secops: "cybersecurity",
+  edtech: "edtech",
+  "education technology": "edtech",
+  proptech: "proptech",
+  "property technology": "proptech",
+  ecommerce: "ecommerce",
+  "e-commerce": "ecommerce",
+  commerce: "ecommerce",
+  gaming: "gaming",
+  ai: "artificial_intelligence",
+  "artificial intelligence": "artificial_intelligence",
+  "machine learning": "artificial_intelligence",
+  "generative ai": "artificial_intelligence",
+  genai: "artificial_intelligence",
+  "gen ai": "artificial_intelligence",
+  "developer tools": "developer_tools",
+  devtools: "developer_tools",
+  saas: "saas",
+  defense: "defense",
+  defence: "defense",
 };
 
 export interface ExplicitIntentProfile {
@@ -313,6 +415,12 @@ export function roleFamilyCompatibility(a: RoleFamily, b: RoleFamily): number {
 export function normalizeRequestedIndustry(industry: string | null | undefined): IndustryFamily | null {
   if (!industry) {
     return null;
+  }
+
+  const normalized = industry.toLowerCase().trim();
+  const aliasMatch = INDUSTRY_ALIASES[normalized];
+  if (aliasMatch) {
+    return aliasMatch;
   }
 
   return inferIndustries(industry)[0] ?? null;
