@@ -194,6 +194,71 @@ describe("rankJobs — signal gate", () => {
     expect(results[0]?.job.job_id).toBe("full-match");
     expect(results[0]?.breakdown.skill_alignment).toBe(1.0);
   });
+
+  it("filters out jobs with unrelated role families before ranking", () => {
+    const profile = makeProfile({
+      skills: ["product marketing", "messaging"],
+      target_roles: ["director of marketing"],
+    });
+    const jobs = [
+      makeJob({
+        job_id: "marketing",
+        title: "Director of Product Marketing",
+        description: "Own positioning, messaging, growth strategy, and product launches.",
+      }),
+      makeJob({
+        job_id: "engineering",
+        title: "Senior Software Engineer",
+        description: "Build backend systems, APIs, and platform services in Python.",
+      }),
+    ];
+
+    const results = rankJobs(jobs, profile, 5, 0);
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.job.job_id).toBe("marketing");
+  });
+
+  it("filters clearly wrong industries when target_industry is explicit", () => {
+    const profile = makeProfile({
+      skills: ["product marketing", "messaging", "salesforce"],
+      target_roles: ["director of marketing"],
+    });
+    const jobs = [
+      makeJob({
+        job_id: "fintech-role",
+        title: "Director of Product Marketing",
+        company: "FinBank",
+        description: "Lead product marketing for payments, lending, and consumer banking products.",
+      }),
+      makeJob({
+        job_id: "healthcare-role",
+        title: "Director of Product Marketing",
+        company: "Medallion Health",
+        description: "Drive provider, patient, and clinical messaging for a healthcare platform.",
+      }),
+      makeJob({
+        job_id: "gaming-role",
+        title: "User Acquisition Specialist",
+        company: "Hyperlab Games",
+        description: "Scale player acquisition and gaming growth campaigns across mobile channels.",
+      }),
+      makeJob({
+        job_id: "unknown-role",
+        title: "Director of Product Marketing",
+        company: "Workflow Cloud",
+        description: "Own product positioning, launches, and demand generation for a workflow platform.",
+      }),
+    ];
+
+    const results = rankJobs(jobs, profile, 5, 0, { target_industry: "fintech" });
+    const resultIds = results.map((result) => result.job.job_id);
+
+    expect(resultIds).toContain("fintech-role");
+    expect(resultIds).toContain("unknown-role");
+    expect(resultIds).not.toContain("healthcare-role");
+    expect(resultIds).not.toContain("gaming-role");
+  });
 });
 
 // ---------------------------------------------------------------------------

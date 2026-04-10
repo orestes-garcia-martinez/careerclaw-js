@@ -258,8 +258,8 @@ describe("rankJobsWithEmbeddings", () => {
     });
     pmJob = makeJob({
       job_id: "pm-1",
-      title: "Operations Project Manager",
-      description: "Project management, PMP, stakeholder planning.",
+      title: "Product Manager",
+      description: "Roadmap planning, stakeholder alignment, and feature prioritization.",
     });
     profile = makeProfile();
 
