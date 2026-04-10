@@ -275,6 +275,35 @@ describe("runBriefing — edge cases", () => {
       })
     ).resolves.not.toThrow();
   });
+
+  it("uses target_skills overrides to filter and rank results", async () => {
+    const result = await runBriefing(
+      makeProfile({
+        skills: ["react"],
+        target_roles: ["frontend engineer"],
+      }),
+      {
+        fetchFn: stubFetch([
+          makeJob({
+            job_id: "typescript-role",
+            title: "Frontend Engineer",
+            description: "Build React and TypeScript interfaces.",
+          }),
+          makeJob({
+            job_id: "plain-react-role",
+            title: "Frontend Engineer",
+            description: "Build React interfaces.",
+          }),
+        ]),
+        repo: makeTmpRepo(),
+        searchOverrides: { target_skills: ["TypeScript"] },
+      },
+    );
+
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]?.job.job_id).toBe("typescript-role");
+    expect(result.matches[0]?.breakdown.skill_alignment).toBe(1.0);
+  });
 });
 
 describe("runBriefing — resume intelligence", () => {

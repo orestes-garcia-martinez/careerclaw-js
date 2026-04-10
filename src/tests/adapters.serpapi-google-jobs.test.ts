@@ -132,6 +132,22 @@ describe("buildSerpApiGoogleJobsRequest", () => {
     expect(request.q).toContain("fintech");
     expect(request.q).toContain("Florida");
   });
+
+  it("includes explicit target skills in the SerpApi query", () => {
+    const request = buildSerpApiGoogleJobsRequest(
+      {
+        ...emptyProfile(),
+        target_roles: ["Senior Frontend Engineer"],
+        work_mode: "remote",
+      },
+      { target_skills: ["TypeScript", "React", "TypeScript"] },
+    );
+
+    expect(request.q).toContain("Senior Frontend Engineer");
+    expect(request.q).toContain("TypeScript");
+    expect(request.q).toContain("React");
+    expect(request.q.match(/TypeScript/g)?.length).toBe(1);
+  });
 });
 
 describe("mapSerpApiJobToNormalizedJob", () => {

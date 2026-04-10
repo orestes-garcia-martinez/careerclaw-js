@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { compositeScore, compositeScoreHybrid, scoreKeyword, scoreKeywordEnhanced, scoreExperience, scoreRoleAlignment, scoreSalary, scoreWorkMode } from "../matching/scoring.js";
+import { compositeScore, compositeScoreHybrid, scoreKeyword, scoreKeywordEnhanced, scoreExperience, scoreRoleAlignment, scoreSalary, scoreSkillAlignment, scoreWorkMode } from "../matching/scoring.js";
 import { emptyProfile } from "../models.js";
 import type { UserProfile, NormalizedJob } from "../models.js";
 
@@ -286,6 +286,57 @@ describe("scoreRoleAlignment", () => {
   });
 });
 
+describe("scoreSkillAlignment", () => {
+  it("returns 1.0 when an explicit target skill is present in the job", () => {
+    const score = scoreSkillAlignment(
+      makeJob({
+        title: "Senior Frontend Engineer",
+        description: "Build React and TypeScript interfaces for a web app.",
+      }),
+      { target_skills: ["TypeScript"] },
+    );
+    expect(score).toBe(1.0);
+  });
+
+  it("matches taxonomy aliases like TS for TypeScript", () => {
+    const score = scoreSkillAlignment(
+      makeJob({
+        title: "Frontend Engineer",
+        description: "Strong TS and React experience required.",
+      }),
+      { target_skills: ["TypeScript"] },
+    );
+    expect(score).toBe(1.0);
+  });
+
+  it("returns 0.0 when none of the explicit target skills are present", () => {
+    const score = scoreSkillAlignment(
+      makeJob({
+        title: "Frontend Engineer",
+        description: "Strong Python and Django experience required.",
+      }),
+      { target_skills: ["TypeScript"] },
+    );
+    expect(score).toBe(0.0);
+  });
+
+  it("matches non-taxonomy phrase skills via semantic phrases", () => {
+    const score = scoreSkillAlignment(
+      makeJob({
+        title: "AI Engineer",
+        description: "Own prompt engineering, evaluation workflows, and model quality.",
+      }),
+      { target_skills: ["prompt engineering"] },
+    );
+    expect(score).toBe(1.0);
+  });
+
+  it("returns null when no target skills are requested", () => {
+    const score = scoreSkillAlignment(makeJob(), {});
+    expect(score).toBeNull();
+  });
+});
+
 
 describe("hybrid scoring", () => {
   it("matches RN against Registered Nurse through taxonomy expansion", () => {
@@ -380,5 +431,30 @@ describe("hybrid scoring", () => {
 
     expect(legacy.total).toBeGreaterThan(0);
     expect(hybrid.breakdown.lexical_keyword).toBeDefined();
+  });
+
+  it("boosts jobs that satisfy explicit target skills", () => {
+    const profile = makeProfile({
+      skills: ["react"],
+      target_roles: ["frontend engineer"],
+    });
+    const typescriptJob = makeJob({
+      title: "Frontend Engineer",
+      description: "React and TypeScript frontend role.",
+    });
+    const plainReactJob = makeJob({
+      title: "Frontend Engineer",
+      description: "React frontend role with no typed language requirement.",
+    });
+
+    const withSkill = compositeScoreHybrid(profile, typescriptJob, {
+      searchOverrides: { target_skills: ["TypeScript"] },
+    });
+    const withoutSkill = compositeScoreHybrid(profile, plainReactJob, {
+      searchOverrides: { target_skills: ["TypeScript"] },
+    });
+
+    expect(withSkill.breakdown.skill_alignment).toBe(1.0);
+    expect(withSkill.total).toBeGreaterThan(withoutSkill.total);
   });
 });
