@@ -16,10 +16,10 @@ import type { NormalizedJob, UserProfile } from "../models.js";
 
 function makeJob(overrides: Partial<NormalizedJob> & { job_id: string }): NormalizedJob {
   return {
-    title: "Engineer",
-    company: "Acme",
+    title: `Engineer ${overrides.job_id}`,
+    company: `Acme ${overrides.job_id}`,
     location: "Remote",
-    description: "A job.",
+    description: `A job ${overrides.job_id}.`,
     url: `https://example.com/${overrides.job_id}`,
     source: "remoteok",
     salary_min: null,
@@ -83,6 +83,32 @@ describe("deduplicate", () => {
     const result = deduplicate(jobs);
     expect(result).toHaveLength(3);
     expect(result.find((j) => j.job_id === "x")!.source).toBe("remoteok");
+  });
+
+  it("collapses syndicated duplicates with different urls when title, company, and description match", () => {
+    const result = deduplicate([
+      makeJob({
+        job_id: "board-a",
+        title: "Director, Marketing - Deposits",
+        company: "Santander Holdings USA Inc",
+        location: "Hialeah, FL",
+        description: "Lead deposits product marketing, positioning, messaging, and GTM plans.",
+        url: "https://jobs.womenforhire.com/santander-deposits",
+        source: "serpapi_google_jobs",
+      }),
+      makeJob({
+        job_id: "board-b",
+        title: "Director, Marketing - Deposits",
+        company: "Santander",
+        location: "Miami, FL",
+        description: "Lead deposits product marketing, positioning, messaging, and GTM plans.",
+        url: "https://www.santandercareers.com/deposits-role",
+        source: "serpapi_google_jobs",
+      }),
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.url).toBe("https://www.santandercareers.com/deposits-role");
   });
 });
 

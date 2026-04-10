@@ -117,6 +117,21 @@ describe("buildSerpApiGoogleJobsRequest", () => {
 
     expect(request.q).toContain("Staff platform engineer focused on APIs and reliability");
   });
+
+  it("includes a second distinct target role when the profile has a broader role set", () => {
+    const request = buildSerpApiGoogleJobsRequest({
+      ...emptyProfile(),
+      target_roles: ["Director of Marketing", "Head of Product Marketing", "B2B Marketing Director"],
+      target_industry: "fintech",
+      work_mode: "onsite",
+      location: "Florida",
+    });
+
+    expect(request.q).toContain("Director of Marketing");
+    expect(request.q).toContain("Head of Product Marketing");
+    expect(request.q).toContain("fintech");
+    expect(request.q).toContain("Florida");
+  });
 });
 
 describe("mapSerpApiJobToNormalizedJob", () => {

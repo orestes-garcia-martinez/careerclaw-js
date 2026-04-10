@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { compositeScore, compositeScoreHybrid, scoreKeyword, scoreKeywordEnhanced, scoreExperience, scoreSalary, scoreWorkMode } from "../matching/scoring.js";
+import { compositeScore, compositeScoreHybrid, scoreKeyword, scoreKeywordEnhanced, scoreExperience, scoreRoleAlignment, scoreSalary, scoreWorkMode } from "../matching/scoring.js";
 import { emptyProfile } from "../models.js";
 import type { UserProfile, NormalizedJob } from "../models.js";
 
@@ -92,11 +92,10 @@ describe("compositeScore — multiplicative model", () => {
     expect(total).toBeGreaterThan(breakdown.keyword);
   });
 
-  it("all-neutral metadata with full keyword match scores 0.5", () => {
+  it("all-neutral metadata with full keyword match keeps a meaningful score", () => {
     // Profile tokens: [typescript, node, software, engineer]
     // Job title+desc exactly covers those tokens → keyword = 1.0
-    // All metadata neutral (null) → qualityBase = 0.5*0.4 + 0.5*0.3 + 0.5*0.3 = 0.5
-    // total = sqrt(1.0) × 0.5 = 0.5
+    // Role alignment is exact (1.0) while the other metadata dimensions are neutral.
     const { total } = compositeScore(
       makeProfile(),
       makeJob({
@@ -107,7 +106,7 @@ describe("compositeScore — multiplicative model", () => {
         experience_years: null,
       })
     );
-    expect(total).toBe(0.5);
+    expect(total).toBe(0.675);
   });
 
   it("result shape has total, breakdown, matched, gaps", () => {
@@ -118,9 +117,10 @@ describe("compositeScore — multiplicative model", () => {
     expect(result).toHaveProperty("gaps");
   });
 
-  it("breakdown contains keyword, experience, salary, work_mode", () => {
+  it("breakdown contains keyword, role_alignment, experience, salary, work_mode", () => {
     const { breakdown } = compositeScore(makeProfile(), makeJob());
     expect(breakdown).toHaveProperty("keyword");
+    expect(breakdown).toHaveProperty("role_alignment");
     expect(breakdown).toHaveProperty("experience");
     expect(breakdown).toHaveProperty("salary");
     expect(breakdown).toHaveProperty("work_mode");
@@ -240,6 +240,49 @@ describe("scoreWorkMode", () => {
 
   it("returns 0.5 when hybrid user matches an onsite job (acceptable)", () => {
     expect(scoreWorkMode(makeProfile({ work_mode: "hybrid" }), makeJob({ work_mode: "onsite" }))).toBe(0.5);
+  });
+});
+
+describe("scoreRoleAlignment", () => {
+  it("returns 1.0 for same-family matches", () => {
+    const score = scoreRoleAlignment(
+      makeProfile({
+        skills: ["Product Marketing", "Demand Generation"],
+        target_roles: ["Director of Marketing"],
+        resume_summary: "Marketing leader.",
+      }),
+      makeJob({
+        title: "Head of Product Marketing",
+        description: "Own positioning, messaging, lifecycle, and demand generation.",
+      }),
+    );
+    expect(score).toBe(1.0);
+  });
+
+  it("strongly penalizes clear cross-function mismatches", () => {
+    const score = scoreRoleAlignment(
+      makeProfile({
+        skills: ["Product Marketing", "Demand Generation"],
+        target_roles: ["Director of Marketing"],
+        resume_summary: "Marketing leader.",
+      }),
+      makeJob({
+        title: "Software Engineer",
+        description: "Build backend systems in python and node.",
+      }),
+    );
+    expect(score).toBe(0.05);
+  });
+
+  it("returns neutral when the engine cannot infer a role family", () => {
+    const score = scoreRoleAlignment(
+      makeProfile({ skills: ["strategy"], target_roles: ["lead"] }),
+      makeJob({
+        title: "Special Projects",
+        description: "Own ambiguous initiatives.",
+      }),
+    );
+    expect(score).toBe(0.5);
   });
 });
 

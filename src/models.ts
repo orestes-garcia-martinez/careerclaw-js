@@ -201,6 +201,8 @@ export interface MatchBreakdown {
   lexical_keyword?: number;
   /** Optional semantic concept score from the hybrid matcher. */
   semantic?: number;
+  /** Alignment between the user's target function and the job's function family. */
+  role_alignment?: number;
   experience: number;
   salary: number;
   work_mode: number;

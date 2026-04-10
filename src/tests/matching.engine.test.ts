@@ -82,6 +82,7 @@ describe("rankJobs — basic", () => {
     expect(result).toHaveProperty("matched_keywords");
     expect(result).toHaveProperty("gap_keywords");
     expect(result!.breakdown).toHaveProperty("keyword");
+    expect(result!.breakdown).toHaveProperty("role_alignment");
     expect(result!.breakdown).toHaveProperty("experience");
     expect(result!.breakdown).toHaveProperty("salary");
     expect(result!.breakdown).toHaveProperty("work_mode");
