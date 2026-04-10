@@ -88,4 +88,16 @@ describe("inferIndustriesFromJob", () => {
     expect(industries).toContain("artificial_intelligence");
     expect(industries).toContain("developer_tools");
   });
+
+  it("does not classify healthcare dx shorthand as developer tools", () => {
+    const job = makeJob({
+      job_id: "healthcare-dx-1",
+      title: "Clinical Operations Manager",
+      description: "Improve patient intake, care management, and faster dx workflows for providers.",
+    });
+
+    const industries = inferIndustriesFromJob(job);
+    expect(industries).toContain("healthcare");
+    expect(industries).not.toContain("developer_tools");
+  });
 });

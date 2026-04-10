@@ -277,7 +277,6 @@ const INDUSTRY_KEYWORDS: Record<IndustryFamily, readonly string[]> = {
     "developer tools",
     "devtools",
     "developer experience",
-    "dx",
     "api platform",
     "developer platform",
     "observability",
