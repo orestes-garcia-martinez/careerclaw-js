@@ -21,6 +21,7 @@
 import type {
   NormalizedJob,
   ResumeIntelligence,
+  SearchOverrides,
   UserProfile,
   ScoredJob,
 } from "../models.js";
@@ -28,6 +29,8 @@ import { DEFAULT_TOP_K } from "../config.js";
 import { compositeScore, compositeScoreHybrid, compositeScoreWithEmbedding } from "./scoring.js";
 import type { EmbeddingProvider } from "../embedding/provider.js";
 import { buildProfileEmbeddingText, buildJobEmbeddingText } from "../embedding/text-builder.js";
+
+const MIN_SKILL_ALIGNMENT = 0.0001;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -46,11 +49,12 @@ export function rankJobs(
   jobs: NormalizedJob[],
   profile: UserProfile,
   limit: number = DEFAULT_TOP_K,
-  minKeywordScore: number = 0.01
+  minKeywordScore: number = 0.01,
+  searchOverrides?: SearchOverrides,
 ): ScoredJob[] {
   return jobs
     .map((job): ScoredJob => {
-      const { total, breakdown, matched, gaps } = compositeScore(profile, job);
+      const { total, breakdown, matched, gaps } = compositeScore(profile, job, searchOverrides);
       return {
         job,
         score: total,
@@ -61,6 +65,7 @@ export function rankJobs(
     })
     // Stage 2: drop jobs that fail the technical relevance gate
     .filter((scored) => scored.breakdown.keyword >= minKeywordScore)
+    .filter(passesSkillGate)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
@@ -82,6 +87,7 @@ export async function rankJobsHybrid(
     resumeIntel?: ResumeIntelligence | null;
     limit?: number;
     minKeywordScore?: number;
+    searchOverrides?: SearchOverrides;
   } = {}
 ): Promise<ScoredJob[]> {
   const {
@@ -89,6 +95,7 @@ export async function rankJobsHybrid(
     resumeIntel,
     limit = DEFAULT_TOP_K,
     minKeywordScore = 0.01,
+    searchOverrides,
   } = options;
 
   return jobs
@@ -96,6 +103,7 @@ export async function rankJobsHybrid(
       const { total, breakdown, matched, gaps } = compositeScoreHybrid(profile, job, {
         ...(resumeText !== undefined ? { resumeText } : {}),
         ...(resumeIntel !== undefined ? { resumeIntel } : {}),
+        ...(searchOverrides !== undefined ? { searchOverrides } : {}),
       });
       return {
         job,
@@ -106,6 +114,7 @@ export async function rankJobsHybrid(
       };
     })
     .filter((scored) => scored.breakdown.keyword >= minKeywordScore)
+    .filter(passesSkillGate)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
@@ -128,6 +137,7 @@ export async function rankJobsWithEmbeddings(
     resumeText?: string;
     limit?: number;
     minKeywordScore?: number;
+    searchOverrides?: SearchOverrides;
   },
 ): Promise<ScoredJob[]> {
   const {
@@ -139,6 +149,7 @@ export async function rankJobsWithEmbeddings(
     // keyword overlap (e.g. unrelated industries) can float on high cosine similarity
     // alone. 0.03 filters true noise while keeping relevant jobs with unusual vocabulary.
     minKeywordScore = 0.03,
+    searchOverrides,
   } = options;
 
   const profileText = buildProfileEmbeddingText(profile, resumeText);
@@ -158,10 +169,21 @@ export async function rankJobsWithEmbeddings(
         job,
         profileVec,
         jobVec,
+        searchOverrides,
       );
       return { job, score: total, breakdown, matched_keywords: matched, gap_keywords: gaps };
     })
     .filter((scored) => scored.breakdown.keyword >= minKeywordScore)
+    .filter(passesSkillGate)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
+}
+
+function passesSkillGate(scored: ScoredJob): boolean {
+  const skillAlignment = scored.breakdown.skill_alignment;
+  if (skillAlignment === undefined) {
+    return true;
+  }
+
+  return skillAlignment >= MIN_SKILL_ALIGNMENT;
 }

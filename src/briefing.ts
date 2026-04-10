@@ -154,6 +154,8 @@ async function runBriefingInternal(
     searchOverrides,
   } = options;
 
+  const rankingProfile = applySearchOverridesToProfile(profile, searchOverrides);
+
   const isProActive = await resolvePremiumDraftAccess(executionMode, resumeIntel);
 
   // Enforce tier-aware topK ceiling — the engine must not trust the caller.
@@ -189,18 +191,20 @@ async function runBriefingInternal(
   const matches: ScoredJob[] = jobs.length === 0
     ? []
     : embeddingProvider
-    ? await rankJobsWithEmbeddings(jobs, profile, {
+    ? await rankJobsWithEmbeddings(jobs, rankingProfile, {
         embeddingProvider,
         limit: clampedTopK,
         ...(resumeText !== undefined ? { resumeText } : {}),
+        ...(searchOverrides !== undefined ? { searchOverrides } : {}),
       })
     : SEMANTIC_MATCHING.ENABLED
-    ? await rankJobsHybrid(jobs, profile, {
+    ? await rankJobsHybrid(jobs, rankingProfile, {
         limit: clampedTopK,
         ...(resumeText !== undefined ? { resumeText } : {}),
         ...(resumeIntel !== undefined ? { resumeIntel } : {}),
+        ...(searchOverrides !== undefined ? { searchOverrides } : {}),
       })
-    : rankJobs(jobs, profile, clampedTopK);
+    : rankJobs(jobs, rankingProfile, clampedTopK, 0.01, searchOverrides);
   const rankMs = Date.now() - rankStart;
 
   const draftStart = Date.now();
@@ -313,6 +317,24 @@ async function runBriefingInternal(
       already_present: trackingResult.already_present,
     },
     dry_run: dryRun,
+  };
+}
+
+function applySearchOverridesToProfile(
+  profile: UserProfile,
+  overrides?: SearchOverrides,
+): UserProfile {
+  const targetSkills = (overrides?.target_skills ?? [])
+    .map((skill) => skill.trim())
+    .filter((skill) => skill.length > 0);
+
+  if (targetSkills.length === 0) {
+    return profile;
+  }
+
+  return {
+    ...profile,
+    skills: [...new Set([...profile.skills, ...targetSkills])],
   };
 }
 

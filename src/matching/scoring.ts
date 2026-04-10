@@ -17,6 +17,7 @@ import type {
   MatchBreakdown,
   NormalizedJob,
   ResumeIntelligence,
+  SearchOverrides,
   UserProfile,
 } from "../models.js";
 import {
@@ -33,6 +34,12 @@ import {
 } from "./semantic-scoring.js";
 import { cosineSimilarity } from "../embedding/cosine.js";
 import { EMBEDDING_MATCHING, SEMANTIC_MATCHING } from "../config.js";
+import {
+  getCredentials,
+  getSkillAliases,
+  getCanonicalSkill,
+  normalizeSkill,
+} from "../core/skill-taxonomy.js";
 
 /**
  * Quality dimension weights — applied AFTER the keyword signal multiplier.
@@ -49,6 +56,8 @@ const QUALITY_WEIGHTS = {
   salary: 0.2,
   work_mode: 0.2,
 } as const;
+
+const SKILL_WEIGHT_BONUS = 0.25;
 
 // Verify weights sum to 1.0 at module load time
 const _weightSum = Object.values(QUALITY_WEIGHTS).reduce((a, b) => a + b, 0);
@@ -349,6 +358,23 @@ export function scoreRoleAlignment(
   return best;
 }
 
+export function scoreSkillAlignment(
+  job: NormalizedJob,
+  overrides?: SearchOverrides,
+): number | null {
+  const requestedSkills = normalizeTargetSkills(overrides?.target_skills);
+  if (requestedSkills.length === 0) {
+    return null;
+  }
+
+  const jobView = buildJobSemanticView(job);
+  const matchedCount = requestedSkills.filter((skill) =>
+    jobMatchesTargetSkill(jobView, skill),
+  ).length;
+
+  return roundScore(matchedCount / requestedSkills.length);
+}
+
 /**
  * Compute the weighted composite score (legacy / lexical-only path).
  *
@@ -363,26 +389,37 @@ export function scoreRoleAlignment(
  */
 export function compositeScore(
   profile: UserProfile,
-  job: NormalizedJob
+  job: NormalizedJob,
+  overrides?: SearchOverrides,
 ): { total: number; breakdown: MatchBreakdown; matched: string[]; gaps: string[] } {
   const kw = scoreKeyword(profile, job);
   const role_alignment = scoreRoleAlignment(profile, job);
+  const skill_alignment = scoreSkillAlignment(job, overrides);
   const experience = scoreExperience(profile, job);
   const salary = scoreSalary(profile, job);
   const work_mode = scoreWorkMode(profile, job);
 
-  const qualityBase =
-    role_alignment * QUALITY_WEIGHTS.role_alignment +
-    experience * QUALITY_WEIGHTS.experience +
-    salary     * QUALITY_WEIGHTS.salary +
-    work_mode  * QUALITY_WEIGHTS.work_mode;
+  const qualityBase = computeQualityBase({
+    role_alignment,
+    skill_alignment,
+    experience,
+    salary,
+    work_mode,
+  });
 
   const signal = Math.sqrt(kw.score);
   const total = roundScore(signal * qualityBase);
 
   return {
     total,
-    breakdown: { keyword: kw.score, role_alignment, experience, salary, work_mode },
+    breakdown: {
+      keyword: kw.score,
+      role_alignment,
+      ...(skill_alignment !== null ? { skill_alignment } : {}),
+      experience,
+      salary,
+      work_mode,
+    },
     matched: kw.matched,
     gaps: kw.gaps,
   };
@@ -391,7 +428,11 @@ export function compositeScore(
 export function compositeScoreHybrid(
   profile: UserProfile,
   job: NormalizedJob,
-  options: { resumeText?: string; resumeIntel?: ResumeIntelligence | null } = {}
+  options: {
+    resumeText?: string;
+    resumeIntel?: ResumeIntelligence | null;
+    searchOverrides?: SearchOverrides;
+  } = {}
 ): {
   total: number;
   breakdown: HybridMatchBreakdown;
@@ -408,15 +449,18 @@ export function compositeScoreHybrid(
   const semantic = computeSemanticScore(profileView, jobView);
 
   const role_alignment = scoreRoleAlignment(profile, job);
+  const skill_alignment = scoreSkillAlignment(job, options.searchOverrides);
   const experience = scoreExperience(profile, job);
   const salary = scoreSalary(profile, job);
   const work_mode = scoreWorkMode(profile, job);
 
-  const qualityBase =
-    role_alignment * QUALITY_WEIGHTS.role_alignment +
-    experience * QUALITY_WEIGHTS.experience +
-    salary     * QUALITY_WEIGHTS.salary +
-    work_mode  * QUALITY_WEIGHTS.work_mode;
+  const qualityBase = computeQualityBase({
+    role_alignment,
+    skill_alignment,
+    experience,
+    salary,
+    work_mode,
+  });
 
   const lexicalForRanking = lexicalEnhanced.score;
   const signalInput = semantic.available
@@ -434,6 +478,7 @@ export function compositeScoreHybrid(
       lexical_keyword: lexicalBaseline.score,
       semantic: semantic.available ? semantic.score : 0,
       role_alignment,
+      ...(skill_alignment !== null ? { skill_alignment } : {}),
       experience,
       salary,
       work_mode,
@@ -463,6 +508,7 @@ export function compositeScoreWithEmbedding(
   job: NormalizedJob,
   profileVec: Float32Array,
   jobVec: Float32Array,
+  overrides?: SearchOverrides,
 ): {
   total: number;
   breakdown: EmbeddingMatchBreakdown;
@@ -473,15 +519,18 @@ export function compositeScoreWithEmbedding(
   const embed = cosineSimilarity(profileVec, jobVec);
 
   const role_alignment = scoreRoleAlignment(profile, job);
+  const skill_alignment = scoreSkillAlignment(job, overrides);
   const experience = scoreExperience(profile, job);
   const salary = scoreSalary(profile, job);
   const work_mode = scoreWorkMode(profile, job);
 
-  const qualityBase =
-    role_alignment * QUALITY_WEIGHTS.role_alignment +
-    experience * QUALITY_WEIGHTS.experience +
-    salary     * QUALITY_WEIGHTS.salary +
-    work_mode  * QUALITY_WEIGHTS.work_mode;
+  const qualityBase = computeQualityBase({
+    role_alignment,
+    skill_alignment,
+    experience,
+    salary,
+    work_mode,
+  });
 
   const signalInput =
     kw.score * EMBEDDING_MATCHING.WEIGHTS.LEXICAL +
@@ -492,7 +541,15 @@ export function compositeScoreWithEmbedding(
 
   return {
     total,
-    breakdown: { keyword: kw.score, embedding: embed, role_alignment, experience, salary, work_mode },
+    breakdown: {
+      keyword: kw.score,
+      embedding: embed,
+      role_alignment,
+      ...(skill_alignment !== null ? { skill_alignment } : {}),
+      experience,
+      salary,
+      work_mode,
+    },
     matched: kw.matched,
     gaps: kw.gaps,
   };
@@ -556,4 +613,79 @@ function roleFamilyCompatibility(a: RoleFamily, b: RoleFamily): number {
   }
 
   return 0.05;
+}
+
+function computeQualityBase(scores: {
+  role_alignment: number;
+  skill_alignment: number | null;
+  experience: number;
+  salary: number;
+  work_mode: number;
+}): number {
+  const weightedParts = [
+    { score: scores.role_alignment, weight: QUALITY_WEIGHTS.role_alignment },
+    { score: scores.experience, weight: QUALITY_WEIGHTS.experience },
+    { score: scores.salary, weight: QUALITY_WEIGHTS.salary },
+    { score: scores.work_mode, weight: QUALITY_WEIGHTS.work_mode },
+  ];
+
+  if (scores.skill_alignment !== null) {
+    weightedParts.push({
+      score: scores.skill_alignment,
+      weight: SKILL_WEIGHT_BONUS,
+    });
+  }
+
+  const totalWeight = weightedParts.reduce((sum, entry) => sum + entry.weight, 0);
+  return weightedParts.reduce(
+    (sum, entry) => sum + entry.score * (entry.weight / totalWeight),
+    0,
+  );
+}
+
+function normalizeTargetSkills(skills: string[] | undefined): string[] {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+
+  for (const skill of skills ?? []) {
+    const clean = skill.trim();
+    if (!clean) continue;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(clean);
+  }
+
+  return normalized;
+}
+
+function jobMatchesTargetSkill(
+  jobView: ReturnType<typeof buildJobSemanticView>,
+  skill: string,
+): boolean {
+  const normalized = normalizeSkill(skill);
+  const canonical = getCanonicalSkill(skill);
+
+  if (canonical && jobView.semanticConcepts.has(canonical)) {
+    return true;
+  }
+
+  const candidateTerms = new Set<string>([
+    normalized,
+    skill.toLowerCase().trim(),
+  ]);
+
+  if (canonical) {
+    for (const term of [canonical, ...getSkillAliases(canonical), ...getCredentials(canonical)]) {
+      candidateTerms.add(term.toLowerCase().trim());
+    }
+  }
+
+  for (const term of candidateTerms) {
+    if (term && jobView.lexicalWeights.has(term)) {
+      return true;
+    }
+  }
+
+  return false;
 }

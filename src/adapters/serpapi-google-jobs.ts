@@ -218,11 +218,16 @@ export function buildSerpApiGoogleJobsRequest(
   // Industry: overrides take precedence over profile.target_industry, but only
   // when they carry a non-empty value after trimming. An empty-string override
   // (e.g. from form serialisation) must not suppress a populated profile field.
-  // Future: target_companies and target_skills from overrides will be wired here.
+  // Future: target_companies from overrides will be wired here.
   const industry =
     overrides?.target_industry?.trim() || profile.target_industry?.trim() || null;
   if (industry) {
     queryParts.push(industry);
+  }
+
+  const targetSkills = normalizeTargetSkills(overrides?.target_skills);
+  if (targetSkills.length > 0) {
+    queryParts.push(...targetSkills.slice(0, 2));
   }
 
   if (isLocationBased && profile.location) {
@@ -641,6 +646,22 @@ function normalizeRoleCore(role: string): string {
       .replace(/\b(of|and|for|the)\b/g, " ")
       .replace(/\s+/g, " "),
   );
+}
+
+function normalizeTargetSkills(skills: string[] | undefined): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const skill of skills ?? []) {
+    const cleaned = cleanText(skill);
+    if (!cleaned) continue;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(cleaned);
+  }
+
+  return normalized;
 }
 
 function isAbortError(error: unknown): boolean {

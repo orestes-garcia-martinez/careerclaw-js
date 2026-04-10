@@ -132,6 +132,37 @@ describe("rankJobs — signal gate", () => {
     const jobs = [makeJob({ job_id: "x", description: "typescript engineer" })];
     expect(() => rankJobs(jobs, emptyProfile())).not.toThrow();
   });
+
+  it("filters out jobs that miss an explicitly requested target skill", () => {
+    const profile = makeProfile({
+      skills: ["react"],
+      target_roles: ["frontend engineer"],
+    });
+    const jobs = [
+      makeJob({
+        job_id: "typescript-role",
+        title: "Frontend Engineer",
+        description: "Build React and TypeScript interfaces.",
+      }),
+      makeJob({
+        job_id: "plain-react-role",
+        title: "Frontend Engineer",
+        description: "Build React interfaces.",
+      }),
+    ];
+
+    const results = rankJobs(
+      jobs,
+      profile,
+      5,
+      0,
+      { target_skills: ["TypeScript"] },
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.job.job_id).toBe("typescript-role");
+    expect(results[0]?.breakdown.skill_alignment).toBe(1.0);
+  });
 });
 
 // ---------------------------------------------------------------------------

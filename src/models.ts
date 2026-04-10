@@ -113,20 +113,22 @@ export interface UserProfile {
  *   "Find me AI jobs"        → { target_industry: "artificial intelligence" }
  *   "Jobs at Google or PWC"  → { target_companies: ["Google", "PWC"] }
  *   "Find me fintech roles"  → { target_industry: "fintech" }
+ *   "Find me jobs with TypeScript" → { target_skills: ["TypeScript"] }
  *
  * When set, these take precedence over the corresponding profile fields for
  * the duration of the briefing run only.
  *
- * Phase 1 (implemented): target_industry wired into SerpAPI query builder.
- * Phase 2 (future): target_companies, target_skills wired in when the
- *   agent-driven search feature ships.
+ * Phase 1 (implemented): target_industry and target_skills wired into
+ *   retrieval and ranking.
+ * Phase 2 (future): target_companies wired in when the agent-driven search
+ *   feature ships.
  */
 export interface SearchOverrides {
   /** Override or supplement profile.target_industry for this run. */
   target_industry?: string;
   /** Restrict SerpAPI results to specific companies — Phase 2. */
   target_companies?: string[];
-  /** Add skills to the SerpAPI query to narrow domain — Phase 2. */
+  /** Add explicit must-have skills for this run (e.g. "TypeScript"). */
   target_skills?: string[];
 }
 
@@ -203,6 +205,8 @@ export interface MatchBreakdown {
   semantic?: number;
   /** Alignment between the user's target function and the job's function family. */
   role_alignment?: number;
+  /** Alignment between explicit requested skills and the job requirements. */
+  skill_alignment?: number;
   experience: number;
   salary: number;
   work_mode: number;
