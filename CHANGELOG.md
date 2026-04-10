@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.12.0...careerclaw-js-v1.13.0) (2026-04-10)
+
+
+### Features
+
+* **docs:** trigger release for briefing precision ([#90](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/90)) ([32d15f0](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/32d15f014435836457d5d4b1acea87227a81d411))
+
 ## [1.12.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.11.1...careerclaw-js-v1.12.0) (2026-04-09)
 
 
