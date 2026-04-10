@@ -40,3 +40,8 @@ Validation targets:
 - Add source-quality weighting so direct employer pages outrank repost boards.
 - Add stronger geographic scoring inside ranking, not only search-time filtering.
 - Add anonymized production benchmark fixtures to tune weights safely over time.
+
+## Release Follow-Up
+
+- Keep future release-trigger PR titles aligned with conventional commit subjects when the repo uses squash merge.
+- For ranking and retrieval improvements, prefer `feat(...)` PR titles so the merged commit on `main` is visible to release-please.
