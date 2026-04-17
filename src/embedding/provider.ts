@@ -2,7 +2,7 @@
  * embedding/provider.ts — EmbeddingProvider interface.
  *
  * Defines the contract that all embedding backends must satisfy.
- * Implementations: LocalEmbeddingProvider (@xenova/transformers, ONNX).
+ * Implementations: LocalEmbeddingProvider (@huggingface/transformers, ONNX).
  * Future: RemoteEmbeddingProvider (OpenAI, Cohere, etc.).
  */
 

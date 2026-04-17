@@ -10,7 +10,7 @@
  *   requests → getActiveEmbeddingProvider() → instant, returns cached instance
  *   fallback → if provider is null, briefing falls back to rankJobsHybrid
  *
- * The @xenova/transformers module is imported dynamically only when
+ * The @huggingface/transformers module is imported dynamically only when
  * CAREERCLAW_EMBEDDING_PROVIDER=local. When set to "none" the heavy
  * ONNX runtime is never loaded, keeping cold-start overhead minimal.
  */

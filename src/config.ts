@@ -152,7 +152,7 @@ export const PRO_TOP_K = 10;
 /**
  * Which embedding backend to activate.
  *
- * "local"  → LocalEmbeddingProvider (@xenova/transformers, ONNX).
+ * "local"  → LocalEmbeddingProvider (@huggingface/transformers, ONNX).
  *            Requires the model to be pre-downloaded to EMBEDDING_MODEL_DIR.
  * "none"   → Embedding disabled; briefing uses rankJobsHybrid (default).
  */

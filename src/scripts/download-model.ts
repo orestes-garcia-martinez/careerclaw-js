@@ -38,7 +38,7 @@ async function main(): Promise<void> {
     console.log(`[careerclaw] Created directory: ${modelDir}`);
   }
 
-  const { env, pipeline } = await import("@xenova/transformers");
+  const { env, pipeline } = await import("@huggingface/transformers");
 
   env.cacheDir = modelDir;
   env.allowRemoteModels = true; // allow download — this is the setup script
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
 
   console.log("[careerclaw] Fetching model files from Hugging Face Hub...");
 
-  await pipeline("feature-extraction", modelName, { quantized: true });
+  await pipeline("feature-extraction", modelName, { dtype: "q8" });
 
   console.log("[careerclaw] Model downloaded successfully.");
   console.log("[careerclaw] Add to your worker .env:");

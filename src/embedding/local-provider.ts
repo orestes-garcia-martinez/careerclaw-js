@@ -1,7 +1,7 @@
 /**
  * embedding/local-provider.ts — Local ONNX embedding provider.
  *
- * Uses @xenova/transformers (ONNX Runtime) to run sentence embedding
+ * Uses @huggingface/transformers (ONNX Runtime) to run sentence embedding
  * models entirely on-device. No network calls during inference.
  *
  * Intended use:
@@ -58,14 +58,14 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
    * @throws If the model is not found in `modelDir`.
    */
   async initialize(modelDir: string): Promise<void> {
-    const { env, pipeline } = await import("@xenova/transformers");
+    const { env, pipeline } = await import("@huggingface/transformers");
 
     env.cacheDir = modelDir;
     env.allowRemoteModels = false; // never download at runtime
     env.allowLocalModels = true;
 
     this.pipe = await pipeline("feature-extraction", this.modelName, {
-      quantized: true, // use model_quantized.onnx (~22 MB for MiniLM)
+      dtype: "q8", // use model_quantized.onnx (~22 MB for MiniLM)
     }) as Pipeline;
 
     // Derive real output dimensions from the model rather than assuming 384.
