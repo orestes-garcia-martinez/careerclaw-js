@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.1](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.14.0...careerclaw-js-v1.14.1) (2026-04-18)
+
+
+### Bug Fixes
+
+* **config:** replace vulnerable dependencies (protobufjs, esbuild) ([#103](https://github.com/orestes-garcia-martinez/careerclaw-js/issues/103)) ([e315410](https://github.com/orestes-garcia-martinez/careerclaw-js/commit/e3154105bdf8025cb45c582f76623c411131a0ef))
+
 ## [1.14.0](https://github.com/orestes-garcia-martinez/careerclaw-js/compare/careerclaw-js-v1.13.0...careerclaw-js-v1.14.0) (2026-04-10)
 
 
