@@ -48,7 +48,7 @@ export const HTTP_TIMEOUT_MS = 15_000;
  * Identifies the tool and provides a contact point per robots.txt convention.
  */
 export const USER_AGENT =
-	"careerclaw-js/1.14.0 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
+	"careerclaw-js/1.14.1 (https://github.com/orestes-garcia-martinez/careerclaw-js)";
 
 // ---------------------------------------------------------------------------
 // Job sources
@@ -152,7 +152,7 @@ export const PRO_TOP_K = 10;
 /**
  * Which embedding backend to activate.
  *
- * "local"  → LocalEmbeddingProvider (@xenova/transformers, ONNX).
+ * "local"  → LocalEmbeddingProvider (@huggingface/transformers, ONNX).
  *            Requires the model to be pre-downloaded to EMBEDDING_MODEL_DIR.
  * "none"   → Embedding disabled; briefing uses rankJobsHybrid (default).
  */
