@@ -60,7 +60,7 @@
     "vitest": "^4.0.0"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.8.1",
+    "@huggingface/transformers": "^4.1.0",
     "fast-xml-parser": "^5.5.7"
   },
   "exports": {
