@@ -29,7 +29,7 @@ jobs:
         run: npm pack
 
       - name: VirusTotal Scan
-        uses: cssnr/virustotal-action@v1
+        uses: cssnr/virustotal-action@v2
         with:
           vt_api_key: ${{ secrets.VIRTUAL_TOTAL_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
