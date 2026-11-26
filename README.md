@@ -1,314 +1,169 @@
-# careerclaw-js
+# CareerClaw JS
 
-[![Security Scan (VirusTotal)](https://github.com/orestes-garcia-martinez/careerclaw-js/actions/workflows/security-scan.yml/badge.svg)](https://github.com/orestes-garcia-martinez/careerclaw-js/actions/workflows/security-scan.yml)
+CareerClaw is a free, local-first job search assistant. It finds job openings, ranks them against your profile, drafts outreach for top matches, and saves opportunities locally.
 
-[![CI](https://github.com/orestes-garcia-martinez/careerclaw-js/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/orestes-garcia-martinez/careerclaw-js/actions/workflows/ci.yml)
+Run it as a **standalone Node.js CLI** or install the **[CareerClaw skill from ClawHub](https://clawhub.ai/orestes-garcia-martinez/skills/careerclaw)** to use it inside OpenClaw.
 
-**Privacy-first job search automation with a standalone Node.js runtime for local/manual workflows.**
+## What CareerClaw does
 
-CareerClaw turns your job-search workflow into a structured daily system:
-fetch listings → rank matches → draft outreach → track applications.
+- Fetches listings from RemoteOK and Hacker News Who’s Hiring. You can optionally add Google Jobs results through SerpApi.
+- Ranks openings using your skills, experience, salary preferences, and preferred work mode.
+- Shows matching signals so you can decide which roles are worth a closer look.
+- Drafts outreach for top matches using templates.
+- Saves opportunities and briefing history on your machine.
 
-- **Standalone supported:** the Node.js CLI works for local/manual workflows, testing, and as a skill on any agentic platform (e.g. [OpenClaw](https://openclaw.org/)). Install from [ClawHub](https://clawhub.ai/)
-- **Local-first:** your resume and results stay on your machine
-- **Bring your own LLM API key (optional):** use OpenAI or Anthropic to enhance drafts
+## Quickstart: standalone CLI
 
-> **Why a Node.js rewrite?** It gives CareerClaw a clean direct-import runtime and
-> a friction-light standalone CLI for manual workflows. The same engine can now run inside the
-> platform shell or as a local package without a public Pro bypass flag.
+**Requirements:** Node.js 20 or later and npm 10 or later.
 
----
+### 1. Install CareerClaw
 
-## How It Works
-
-1. **Fetches** job listings from RemoteOK RSS, Hacker News Who's Hiring, and optionally SerpApi's Google Jobs aggregator for broader multi-board coverage
-2. **Ranks** them against your profile using keyword overlap, experience alignment, salary fit, and work-mode preference
-3. **Drafts** outreach for each top match (deterministic template on Free; LLM-enhanced on Pro)
-4. **Tracks** your application pipeline locally in `.careerclaw/`
-
-One command. Everything is local.
-
----
-
-## Quickstart
-
-### 1. Install the standalone CLI
-
-The standalone package can be installed directly from npm, or downloaded as a skill from [ClawHub](https://clawhub.ai/) for use on any agentic platform (e.g. [OpenClaw](https://openclaw.org/)).
-
-```bash
+```sh
 npm install -g careerclaw-js
-```
-
-Verify:
-
-```bash
 careerclaw-js --version
 ```
 
-### 3. Set up manually
-Create the runtime directory and profile:
+### 2. Create your profile
 
-```bash
-mkdir -p ~/.careerclaw
-careerclaw-js profile init
-```
-
-Create : `~/.careerclaw/profile.json`
+Save the following example as `profile.json` in your working directory. Replace the values with your own.
 
 ```json
 {
-  "skills": ["typescript", "python", "react", "sql"],
-  "target_roles": ["senior engineer", "staff engineer"],
+  "skills": ["typescript", "react", "node.js", "sql"],
+  "target_roles": ["senior software engineer", "full-stack engineer"],
   "experience_years": 7,
   "work_mode": "remote",
-  "resume_summary": "Senior engineer with 7 years building distributed systems and developer tools.",
-  "location": "Austin, TX",
+  "resume_summary": "Software engineer building web applications and APIs.",
+  "location": "Jacksonville, FL",
   "location_radius_km": null,
-  "salary_min": 150000
+  "salary_min": 120000
 }
 ```
 
-`location_radius_km` is optional. When set, it limits location-based job source searches (e.g. SerpApi) to within that radius. Only applied when `work_mode` is `"onsite"` or `"hybrid"`. Defaults to the operator cap (161 km / ~100 mi) when null. ClawOS users set this in miles through the UI — the platform converts to km automatically.
+Use `remote`, `hybrid`, or `onsite` for `work_mode`. The optional `location_radius_km` field applies to location-based searches for hybrid and onsite roles.
 
-### 4. Run your first standalone briefing
+### 3. Preview your first briefing
 
-```bash
-# Dry run first — no files written, safe to preview
-careerclaw-js --dry-run
+From the directory containing `profile.json`, run:
 
-# With your resume for better match quality (recommended)
-careerclaw-js --resume-txt ~/.careerclaw/resume.txt --dry-run
-
-# Full run when you're happy with the results
-careerclaw-js --resume-txt ~/.careerclaw/resume.txt
-
-# JSON output for agent/script consumption
-careerclaw-js --resume-txt ~/.careerclaw/resume.txt --json
+```sh
+careerclaw-js --profile ./profile.json --dry-run
 ```
 
-Sample Output
+A dry run fetches current listings and shows the results without writing tracking or run logs. The default sources don’t require an API key.
 
-=== CareerClaw Daily Briefing ===
-Fetched jobs: 303 | Sources: remoteok: 97 | hackernews: 196 | serpapi_google_jobs: 10
-Duration: 1922ms fetch + 182ms rank
+To include your résumé, save a plain-text copy as `resume.txt` and pass it explicitly:
 
-Top Matches:
-
-1) Senior Full-Stack Engineer @ Instinct Science  [hackernews]
-   score: 0.2329 | fit: 8%
-   matches: react, typescript, design, aws, senior
-   gaps:    elixir, postgresql, emr
-   location: REMOTE (US)
-   url: https://news.ycombinator.com/item?id=47233919
-
-
-### Docker / self-hosted
-Add to your .env:
-
-CAREERCLAW_PRO_KEY=YOUR-KEY-HERE
-CAREERCLAW_OPENAI_KEY=sk-...
-
-With a valid Pro license and an LLM API key, CareerClaw:
-
-- Writes personalized outreach emails using your actual resume signals mapped to each job's specific requirements. Falls back to the deterministic template silently on any LLM failure.
-- Enhances the algorithmic gap analysis with personalized insights and recommendations.
-- Generates a tailored cover letter (<300 words) for a specific job match.
-
-Failover chain example (tries Anthropic first, falls back to OpenAI):
-
-```bash
-CAREERCLAW_ANTHROPIC_KEY=sk-ant-...
-CAREERCLAW_OPENAI_KEY=sk-...
-CAREERCLAW_LLM_CHAIN=anthropic/claude-haiku-4-5-20251001,openai/gpt-4o-mini
+```sh
+careerclaw-js --profile ./profile.json --resume-txt ./resume.txt --dry-run
 ```
 
-Estimated cost per run: ~$0.003 at claude-haiku-4-5-20251001 pricing (3 drafts).
+When you’re ready to save the results, run the briefing without `--dry-run`:
 
-### Optional: SerpApi Google Jobs aggregator
+```sh
+careerclaw-js --profile ./profile.json
+```
 
-For broader job coverage, you can enable SerpApi's Google Jobs engine. This surfaces listings from LinkedIn, ZipRecruiter, Lever, Greenhouse, and company career pages through one structured API — without maintaining site-specific scrapers.
+Add `--resume-txt ./resume.txt` if you want the saved briefing to include résumé matching signals.
 
-```bash
-CAREERCLAW_SERPAPI_API_KEY=...
+## Use CareerClaw inside OpenClaw
+
+1. Open the [CareerClaw listing on ClawHub](https://clawhub.ai/orestes-garcia-martinez/skills/careerclaw).
+2. Follow the installation instructions for your OpenClaw environment.
+3. Ask OpenClaw to help you set up CareerClaw and run your first job search briefing.
+
+Example request:
+
+> Help me set up CareerClaw, then run a job search briefing for senior software engineering roles.
+
+## CLI reference
+
+Run `careerclaw-js --help` to see all options available in your installed version.
+
+| Option | What it does |
+| --- | --- |
+| `-p`, `--profile PATH` | Reads your profile from a JSON file. |
+| `--resume-txt PATH` | Includes a plain-text résumé for matching. |
+| `-k`, `--top-k INT` | Sets the maximum number of matches to return. |
+| `-d`, `--dry-run` | Previews results without writing tracking or run logs. |
+| `-j`, `--json` | Returns machine-readable output for scripts and integrations. |
+| `-v`, `--version` | Prints the installed version. |
+| `-h`, `--help` | Shows CLI help. |
+
+To preview up to five matches as JSON:
+
+```sh
+careerclaw-js --profile ./profile.json --top-k 5 --dry-run --json
+```
+
+## Optional: Google Jobs through SerpApi
+
+CareerClaw can use SerpApi’s Google Jobs integration to expand its coverage. This integration requires a SerpApi account and API key and is subject to SerpApi’s usage limits.
+
+Set these variables in the environment where CareerClaw runs:
+
+```dotenv
+CAREERCLAW_SERPAPI_API_KEY=your-serpapi-key
 CAREERCLAW_SERPAPI_GOOGLE_JOBS_ENABLED=true
-CAREERCLAW_SERPAPI_GOOGLE_JOBS_MAX_PAGES=1         # pages per run (1–5)
-CAREERCLAW_SERPAPI_GOOGLE_JOBS_RADIUS_KM=161       # operator hard cap (~100 mi); user radius is capped here
-CAREERCLAW_SERPAPI_GOOGLE_JOBS_GL=us               # Google country domain
-CAREERCLAW_SERPAPI_GOOGLE_JOBS_HL=en               # UI language
-CAREERCLAW_SERPAPI_GOOGLE_JOBS_NO_CACHE=false      # true = bypass SerpApi cache (uses search credits)
+CAREERCLAW_SERPAPI_GOOGLE_JOBS_MAX_PAGES=1
 ```
 
-**How location and radius work:**
+For remote profiles, CareerClaw uses SerpApi’s remote filter. For hybrid and onsite profiles, it uses the profile location and search radius.
 
-- `work_mode: "remote"` — uses SerpApi's native remote filter (`ltype=1`). No geographic `location` or radius is sent.
-- `work_mode: "onsite"` / `"hybrid"` — passes `profile.location` as the geographic anchor and `profile.location_radius_km` as the search radius (`lrad`), capped at `CAREERCLAW_SERPAPI_GOOGLE_JOBS_RADIUS_KM`.
+| Variable | What it controls |
+| --- | --- |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_MAX_PAGES` | Number of results pages per run, from 1 to 5. |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_RADIUS_KM` | Maximum search radius for location-based queries. |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_GL` | Google country code for search results. |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_HL` | Language for Google results. |
+| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_NO_CACHE` | Requests fresh results, which can consume additional search credits. |
 
-### Standalone (programmatic)
+## Local files and privacy
 
-**Standalone users** place these in `.env`; `location_radius_km` in `profile.json` accepts kilometres directly.
-Use runCareerClawStandalone() for local scripts, CI pipelines, or as a skill inside other agentic platforms (e.g. OpenClaw).
-License validation runs against Gumroad when a proKey is provided.
+Your profile and résumé are read from the file paths you provide. CareerClaw fetches listings from external job sources and writes tracking data locally. If you enable SerpApi, it sends the search parameters needed to retrieve Google Jobs results.
 
-```ts
-import { runCareerClawStandalone } from "careerclaw-js";
+The runtime directory is `.careerclaw` by default. Set `CAREERCLAW_DIR` to use a different directory.
 
-const result = await runCareerClawStandalone(
-  {
-    profile,
-    resumeText,
-    topK: 3,
-    dryRun: true,
-  },
-  { proKey: process.env.CAREERCLAW_PRO_KEY }
-);
-```
+| File | Purpose |
+| --- | --- |
+| `tracking.json` | Saved opportunities keyed by job ID. |
+| `runs.jsonl` | Append-only history of briefing runs. |
 
-### All CLI Options
+Keep résumés, profiles, tracking files, and API keys out of source control. See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
-careerclaw-js [OPTIONS]
+## Development
 
-Options:
--p, --profile PATH     Path to profile.json
-                       (default: .careerclaw/profile.json)
-     --resume-txt PATH Plain-text resume for enhanced matching
-                       (default: .careerclaw/resume.txt if present)
--k, --top-k INT        Number of top matches to return (default: 3)
--d, --dry-run          Run without writing tracking or run log
--j, --json             Machine-readable JSON output (no colour, no headers)
--v, --version          Show version number
--h, --help             Show this help message
-
-### Application Tracking
-
-Tracking is written automatically on each non-dry-run. Status lifecycle:
-saved → applied → interviewing → offer → rejected
-Runtime files — all stored under .careerclaw/:
-
-| File             | Contents                                         |
-|------------------|--------------------------------------------------|
-| `profile.json`   | Career profile                                   |
-| `resume.txt`     | Plain-text resume (optional)                     |
-| `tracking.json`  | Saved jobs keyed by stable `job_id`              |
-| `runs.jsonl`     | Append-only run log (one line per run)           |
-| `.license_cache` | Pro license validation cache (SHA-256 hash only) |
-
-File format compatibility: careerclaw-js uses the same JSON formats as the Python careerclaw package.
-profile.json, tracking.json, and runs.jsonl are fully interchangeable between both implementations.
-
-### Environment Variables
-
-| Variable                                    | Default  | Description                                                                           |
-|---------------------------------------------|----------|---------------------------------------------------------------------------------------|
-| `CAREERCLAW_ANTHROPIC_KEY`                  | —        | Anthropic API key for LLM draft enhancement                                           |
-| `CAREERCLAW_OPENAI_KEY`                     | —        | OpenAI API key for LLM draft enhancement                                              |
-| `CAREERCLAW_LLM_KEY`                        | —        | Legacy single-provider key fallback                                                   |
-| `CAREERCLAW_LLM_CHAIN`                      | —        | Ordered failover chain, e.g. `anthropic/claude-haiku-4-5-20251001,openai/gpt-4o-mini` |
-| `CAREERCLAW_LLM_MODEL`                      | —        | Override default LLM model                                                            |
-| `CAREERCLAW_LLM_PROVIDER`                   | —        | `anthropic` or `openai` (inferred from key when not set)                              |
-| `CAREERCLAW_DIR`                            | —        | Override runtime directory (default: `.careerclaw`)                                   |
-| `HN_WHO_IS_HIRING_ID`                       | —        | Override HN thread ID (updated monthly)                                               |
-| `CAREERCLAW_SERPAPI_API_KEY`                | —        | SerpApi key — enables Google Jobs aggregator when set                                 |
-| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_ENABLED`    | `false`  | Explicitly enable/disable the SerpApi source (`true` auto-set when key is present)    |
-| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_MAX_PAGES`  | `1`      | Pages per run (1–5). Each page ~10 results.                                           |
-| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_RADIUS_KM`  | `161`    | Operator hard cap on location radius (~100 mi). User's `location_radius_km` is capped here. |
-| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_GL`         | `us`     | Google country domain for job results                                                 |
-| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_HL`         | `en`     | UI language for job results                                                           |
-| `CAREERCLAW_SERPAPI_GOOGLE_JOBS_NO_CACHE`   | `false`  | Bypass SerpApi's 1-hour cache (consumes search credits)                               |
-
-Copy .env.example to .env and fill in your values.
-
-### Development
-
-#### Prerequisites
-
-- Node.js ≥ 20
-- npm ≥ 10
-
-#### Setup
-
-```bash
-git clone https://github.com/orestes-garcia-martinez/careerclaw-js
+```sh
+git clone https://github.com/orestes-garcia-martinez/careerclaw-js.git
 cd careerclaw-js
 npm install
-```
-
-#### Running Tests
-
-```bash
-# All tests (offline, no network)
-npm test
-
-# Watch mode
-npm run test:watch
-
-# Type-check only
 npm run lint
+npm run build
+npm test
 ```
 
-#### ### Smoke tests (live network — run before release)
+Use `npm run test:watch` while developing. The automated tests are designed to run offline. The following smoke tests use live job sources:
 
-```bash
-npm run smoke:sources    # RemoteOK, HN, and SerpApi connectivity (SerpApi skipped when not configured)
-npm run smoke:briefing   # Full pipeline end-to-end
-npm run smoke:llm        # LLM keys + Pro license validation
+```sh
+npm run smoke:sources
+npm run smoke:briefing
 ```
 
-### Project Structure
-```
-careerclaw-js/
-├── src/
-│   ├── adapters/       # RemoteOK RSS, HN Firebase, and SerpApi Google Jobs adapters
-│   ├── core/           # Shared text processing
-│   ├── matching/       # Scoring engine
-│   ├── tests/          # Vitest test suite (270 tests, fully offline)
-│   ├── briefing.ts     # Pipeline orchestrator (standalone + ClawOS entry points)
-│   ├── cli.ts          # CLI entry point
-│   ├── config.ts       # Environment and source configuration
-│   ├── drafting.ts     # Deterministic draft templates (Free tier)
-│   ├── execution-context.ts  # Execution context types + feature flags
-│   ├── gap.ts          # Gap analysis engine
-│   ├── index.ts        # Public API barrel export
-│   ├── license.ts      # Pro license validation (Gumroad)
-│   ├── llm-enhance.ts  # LLM draft enhancement (Pro)
-│   ├── models.ts       # Canonical data schemas
-│   ├── requirements.ts # Job requirements extraction
-│   ├── resume-intel.ts # Resume intelligence
-│   ├── runtime.ts      # Programmatic runtime wrappers (standalone + ClawOS)
-│   ├── sources.ts      # Source aggregation
-│   └── tracking.ts     # Tracking repository
-├── scripts/            # Smoke + debug scripts (not published)
-├── SKILL.md            # Agent-skill definition (standalone / legacy agent runtime)
-├── CHANGELOG.md
-├── SECURITY.md
-├── package.json
-└── tsconfig.json
-```
+| Path | Purpose |
+| --- | --- |
+| [`src/cli.ts`](src/cli.ts) | CLI argument parsing and output. |
+| [`src/runtime.ts`](src/runtime.ts) | Programmatic entry points. |
+| [`src/briefing.ts`](src/briefing.ts) | Job briefing pipeline. |
+| [`src/adapters/`](src/adapters/) | Job source integrations. |
+| [`src/matching/`](src/matching/) | Job ranking and scoring. |
+| [`src/tests/`](src/tests/) | Automated tests. |
+| [`SKILL.md`](SKILL.md) | Agent skill instructions. |
 
+## Project links
 
-### Security & Privacy
+- [CareerClaw JS on npm](https://www.npmjs.com/package/careerclaw-js)
+- [CareerClaw on ClawHub](https://clawhub.ai/orestes-garcia-martinez/skills/careerclaw)
+- [Release notes](CHANGELOG.md)
+- [Bug reports and feature requests](https://github.com/orestes-garcia-martinez/careerclaw-js/issues)
 
-careerclaw-js is built on a local-first architecture.
-- No backend. No telemetry. No analytics endpoint.
-- API keys never stored. Keys are read from the environment at runtime only.
-- License cache is hash-only. Only SHA-256 of the license key is written to disk.
-- LLM privacy. Only extracted keyword signals sent to the LLM — never raw resume text.
-- External calls: remoteok.com, hacker-news.firebaseio.com, api.gumroad.com, serpapi.com (only when SerpApi is enabled), and your configured LLM provider (using your own key).
-
-See SECURITY.md for the vulnerability disclosure policy.
-
-### Changelog
-
-See CHANGELOG.md for the release notes.
-
-### License
-careerclaw-js is licensed under the MIT License. See LICENSE.md for details.
-
-### Support
-
-- GitHub Issues: bug reports and feature requests
-- Response SLA: critical bugs < 48h · general questions < 72h
-- Security disclosures: see SECURITY.md
-- Pro support: orestes.garcia.martinez@gmail.com
-
-
+The npm package is published under the MIT license.
