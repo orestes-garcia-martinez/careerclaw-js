@@ -4,17 +4,16 @@
 
 [![CI](https://github.com/orestes-garcia-martinez/careerclaw-js/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/orestes-garcia-martinez/careerclaw-js/actions/workflows/ci.yml)
 
-**Privacy-first job search automation for [ClawOS](https://clawoshq.com/) — with a standalone Node.js runtime for local/manual workflows.**
+**Privacy-first job search automation with a standalone Node.js runtime for local/manual workflows.**
 
 CareerClaw turns your job-search workflow into a structured daily system:
 fetch listings → rank matches → draft outreach → track applications.
 
-- **Recommended runtime:** [ClawOS](https://clawoshq.com/) handles setup, entitlement, and trusted execution for you
 - **Standalone supported:** the Node.js CLI works for local/manual workflows, testing, and as a skill on any agentic platform (e.g. [OpenClaw](https://openclaw.org/)). Install from [ClawHub](https://clawhub.ai/)
 - **Local-first:** your resume and results stay on your machine
 - **Bring your own LLM API key (optional):** use OpenAI or Anthropic to enhance drafts
 
-> **Why a Node.js rewrite?** It gives CareerClaw a clean direct-import runtime for ClawOS and
+> **Why a Node.js rewrite?** It gives CareerClaw a clean direct-import runtime and
 > a friction-light standalone CLI for manual workflows. The same engine can now run inside the
 > platform shell or as a local package without a public Pro bypass flag.
 
@@ -33,18 +32,7 @@ One command. Everything is local.
 
 ## Quickstart
 
-### 1. Use CareerClaw inside ClawOS (recommended)
-
-This is the recommended path. [ClawOS](https://clawoshq.com/) handles the full user experience:
-
-- account + billing
-- skill installation and setup
-- trusted Pro activation upstream
-- direct-import execution inside the platform worker
-
-When CareerClaw runs inside ClawOS, users should buy and activate Pro through ClawOS — not by entering a standalone license key into the skill runtime.
-
-### 2. Optional: install the standalone CLI
+### 1. Install the standalone CLI
 
 The standalone package can be installed directly from npm, or downloaded as a skill from [ClawHub](https://clawhub.ai/) for use on any agentic platform (e.g. [OpenClaw](https://openclaw.org/)).
 
@@ -115,51 +103,11 @@ Top Matches:
    url: https://news.ycombinator.com/item?id=47233919
 
 
-## Free vs Pro
-
-CareerClaw has two ways to unlock Pro features depending on how you run it:
-
-| Feature                                          | Free | Pro   |
-|--------------------------------------------------|------|-------|
-| Daily briefing                                   | ✅   | ✅    |
-| Top 3 ranked matches                             | ✅   | ✅    |
-| Application tracking                             | ✅   | ✅    |
-| Outreach email draft (template)                  | ✅   | ✅    |
-| LLM-enhanced outreach email                      | —    | ✅    |
-| LLM-enhanced Resume gap analysis                 | —    | ✅    |
-| LLM-enhanced Cover letter (tailored, <300 words) | —    | ✅    |
-
-### Pro pricing
-
-| Channel                  | Price                               | Details                                                                                                                                     |
-|--------------------------|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| **ClawOS (recommended)** | **$9/month**                        | Managed billing, trusted platform activation, no key management. Visit [clawoshq.com](https://clawoshq.com/)                                |
-| **Standalone**           | **$39 one-time (lifetime license)** | Gumroad key validated against API, cached locally. Purchase at [ogm.gumroad.com/l/careerclaw-pro](https://ogm.gumroad.com/l/careerclaw-pro) |
-
-Recommendation: If you're using ClawOS, purchase Pro through the platform — it handles entitlement, billing, and activation for you.
-The standalone Gumroad license is intended for users running the CLI directly or integrating CareerClaw as a skill on other agentic platforms.
-
-### Pro: Activating
-#### ClawOS-managed users (recommended)
-Buy and activate Pro through ClawOS. The platform resolves the user's entitlement upstream and passes a verified execution context into CareerClaw.
-In ClawOS mode:
-- no standalone --pro flag is used
-- no raw Pro bypass is exposed through the public CLI
-- CareerClaw trusts the platform execution context only after ClawOS verification
-
-#### Standalone users
-Purchase a license key on Gumroad. The key is emailed immediately after payment.
-Add your standalone Pro key to .env or your process environment.
-The key is validated against Gumroad on first use and cached locally as a SHA-256 hash.
-Re-validation happens every 7 days (requires internet).
-
 ### Docker / self-hosted
 Add to your .env:
 
 CAREERCLAW_PRO_KEY=YOUR-KEY-HERE
 CAREERCLAW_OPENAI_KEY=sk-...
-
-### Pro: LLM-Enhanced Drafts
 
 With a valid Pro license and an LLM API key, CareerClaw:
 
@@ -196,46 +144,9 @@ CAREERCLAW_SERPAPI_GOOGLE_JOBS_NO_CACHE=false      # true = bypass SerpApi cache
 - `work_mode: "remote"` — uses SerpApi's native remote filter (`ltype=1`). No geographic `location` or radius is sent.
 - `work_mode: "onsite"` / `"hybrid"` — passes `profile.location` as the geographic anchor and `profile.location_radius_km` as the search radius (`lrad`), capped at `CAREERCLAW_SERPAPI_GOOGLE_JOBS_RADIUS_KM`.
 
-**ClawOS users** set `CAREERCLAW_SERPAPI_API_KEY` (and optionally the other vars) on the **worker** service. The radius is configured in miles through the ClawOS settings UI and converted to km automatically.
-
-**Standalone users** place these in `.env`; `location_radius_km` in `profile.json` accepts kilometres directly.
-
-### Programmatic Integration
-
-CareerClaw exposes a direct-import runtime for both trusted platform adapters and standalone programmatic use.
-
-#### ClawOS (trusted platform context)
-Use createClawOsExecutionContext() to build a verified context after upstream entitlement checks.
-CareerClaw trusts this context and skips standalone license validation entirely.
-
-```ts
-import {
-  runCareerClawWithContext,
-  createClawOsExecutionContext,
-  CAREERCLAW_FEATURES,
-} from "careerclaw-js";
-
-const context = createClawOsExecutionContext({
-  tier: "pro",
-  features: [CAREERCLAW_FEATURES.LLM_OUTREACH_DRAFT],
-});
-
-const result = await runCareerClawWithContext(
-  {
-    profile,
-    resumeText,
-    topK: 5,
-    dryRun: false,
-  },
-  context
-);
-```
-
-This API is intended for trusted platform code paths such as the ClawOS worker after assertion verification.
-The public standalone CLI keeps its own standalone license flow.
-
 ### Standalone (programmatic)
 
+**Standalone users** place these in `.env`; `location_radius_km` in `profile.json` accepts kilometres directly.
 Use runCareerClawStandalone() for local scripts, CI pipelines, or as a skill inside other agentic platforms (e.g. OpenClaw).
 License validation runs against Gumroad when a proKey is provided.
 
@@ -289,7 +200,6 @@ profile.json, tracking.json, and runs.jsonl are fully interchangeable between bo
 
 | Variable                                    | Default  | Description                                                                           |
 |---------------------------------------------|----------|---------------------------------------------------------------------------------------|
-| `CAREERCLAW_PRO_KEY`                        | —        | Pro license key (Gumroad)                                                             |
 | `CAREERCLAW_ANTHROPIC_KEY`                  | —        | Anthropic API key for LLM draft enhancement                                           |
 | `CAREERCLAW_OPENAI_KEY`                     | —        | OpenAI API key for LLM draft enhancement                                              |
 | `CAREERCLAW_LLM_KEY`                        | —        | Legacy single-provider key fallback                                                   |
